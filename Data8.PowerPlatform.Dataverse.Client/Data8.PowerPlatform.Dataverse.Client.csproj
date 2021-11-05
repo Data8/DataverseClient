@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <Authors>Data8 Ltd</Authors>
+    <Copyright>Copyright © 2021 Data8 Limited</Copyright>
+    <RepositoryUrl>https://github.com/Data8/DataverseClient</RepositoryUrl>
+    <PackageReleaseNotes>First release</PackageReleaseNotes>
+    <PackageProjectUrl>https://github.com/Data8/DataverseClient</PackageProjectUrl>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Description>Provides a WS-Trust compatible client for connecting to on-premise IFD instances of Dynamics 365 from .NET Core.</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.IdentityModel.Protocols.WsTrust" Version="6.8.0" />
+    <PackageReference Include="Microsoft.PowerPlatform.Dataverse.Client" Version="0.5.2" />
+    <PackageReference Include="System.ServiceModel.Federation" Version="4.8.1" />
+  </ItemGroup>
+
+</Project>
