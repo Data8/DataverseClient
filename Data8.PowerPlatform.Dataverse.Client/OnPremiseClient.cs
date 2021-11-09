@@ -45,7 +45,23 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// Creates a new <see cref="OnPremiseClient"/>
         /// </summary>
         /// <param name="url">The URL of the organization service to connect to</param>
+        /// <param name="username">The username to authenticate as</param>
+        /// <param name="password">The password to authenticate with</param>
+        /// <remarks>
+        /// The <paramref name="url"/> must include the full path to the organization service, e.g. https://org.crm.contoso.com/XRMServices/2011/Organization.svc
+        /// </remarks>
+        public OnPremiseClient(string url, string username, string password) : this(url, new ClientCredentials { UserName = { UserName = username, Password = password } })
+        {
+        }
+
+        /// <summary>
+        /// Creates a new <see cref="OnPremiseClient"/>
+        /// </summary>
+        /// <param name="url">The URL of the organization service to connect to</param>
         /// <param name="credentials">The credentials to use to authenticate with</param>
+        /// <remarks>
+        /// The <paramref name="url"/> must include the full path to the organization service, e.g. https://org.crm.contoso.com/XRMServices/2011/Organization.svc
+        /// </remarks>
         public OnPremiseClient(string url, ClientCredentials credentials)
         {
             // Get the WSDL of the target to find the authentication type and the URL of the STS for Federated auth
