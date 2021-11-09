@@ -53,14 +53,16 @@ steps:
     nobuild: true
     versioningScheme: byEnvVar
     versionEnvVar: GITVERSION_NUGETVERSION
-    
+
 - task: DotNetCoreCLI@2
   displayName: Push
   inputs:
-    command: push
-    nuGetFeedType: external
-    packagesToPush: '$(build.artifactStagingDirectory)/*.nupkg'
-    publishFeedCredentials: 'NuGet - Data8'
+    command: custom
+    custom: nuget
+    arguments: >
+      push $(Build.ArtifactStagingDirectory)/*.nupkg
+      -s https://api.nuget.org/v3/index.json
+      -k $(NuGetApiKey)
 
 - task: GitTag@5
   displayName: Label Source
