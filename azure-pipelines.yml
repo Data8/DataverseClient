@@ -63,6 +63,7 @@ steps:
       push $(Build.ArtifactStagingDirectory)\*.nupkg
       -s https://api.nuget.org/v3/index.json
       -k $(NuGetApiKey)
+      --no-symbols
 
 - task: GitTag@5
   displayName: Label Source

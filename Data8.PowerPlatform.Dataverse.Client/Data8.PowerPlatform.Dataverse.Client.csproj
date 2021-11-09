@@ -8,17 +8,48 @@
     <PackageReleaseNotes>First release</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/Data8/DataverseClient</PackageProjectUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Description>Provides a WS-Trust compatible client for connecting to on-premise IFD instances of Dynamics 365 from .NET Core.</Description>
+    <Description>Provides a WS-Trust compatible client for connecting to on-premise IFD instances of Dynamics 365 from .NET Core.
+
+This package builds on top of Microsoft.PowerPlatform.Dataverse.Client and offers an alternative IOrganizationService implementation using WS-Trust.
+This allows you to connect using the URL of the organization service, username and password without any additional
+configuration.
+
+Because this OnPremiseClient implements the same IOrganizationService as the standard ServiceClient implementation
+your code can work with either as shown in the sample code below.
+
+using Data8.PowerPlatform.Dataverse.Client;
+using Microsoft.PowerPlatform.Dataverse.Client;
+using Microsoft.Xrm.Sdk;
+
+var onPrem = new OnPremiseClient("https://org.crm.contoso.com/XRMServices/2011/Organization.svc", "AD\\username", "password!");
+var online = new ServiceClient("AuthType=ClientSecret;Url=https://contoso.crm.dynamics.com;ClientId=637C79F7-AE71-4E9A-BD5B-1EC5EC9F397A;ClientSecret=p1UiydoIWwUH5AdMbiVBOrEYn8t4RXud");
+
+CreateRecord(onPrem);
+CreateRecord(online);
+
+void CreateRecord(IOrganizationService svc)
+{
+  var entity = new Entity("account")
+  {
+    ["name"] = "Data8"
+  };
+  
+  entity.Id = svc.Create(entity);
+}
+    </Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <IncludeSymbols>true</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.IdentityModel.Protocols.WsTrust" Version="6.8.0" />
     <PackageReference Include="Microsoft.PowerPlatform.Dataverse.Client" Version="0.5.2" />
     <PackageReference Include="System.ServiceModel.Federation" Version="4.8.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
