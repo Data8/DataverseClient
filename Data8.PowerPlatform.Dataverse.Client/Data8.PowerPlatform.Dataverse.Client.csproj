@@ -44,8 +44,8 @@ void CreateRecord(IOrganizationService svc)
 
   <ItemGroup>
     <PackageReference Include="Microsoft.IdentityModel.Protocols.WsTrust" Version="6.8.0" />
-    <PackageReference Include="Microsoft.PowerPlatform.Dataverse.Client" Version="0.5.2" />
-    <PackageReference Include="System.ServiceModel.Federation" Version="4.8.1" />
+    <PackageReference Include="Microsoft.PowerPlatform.Dataverse.Client" Version="0.5.10" />
+    <PackageReference Include="System.ServiceModel.Federation" Version="4.9.0" />
   </ItemGroup>
 
   <ItemGroup>
