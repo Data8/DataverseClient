@@ -37,7 +37,7 @@ steps:
   displayName: Build
   inputs:
     command: build
-    projects: '**/*.csproj'
+    projects: '**/*.sln'
     arguments: '--configuration $(buildConfiguration) /p:Version=$(GitVersion.NuGetVersion)'
 
 - task: DotNetCoreCLI@2
@@ -52,7 +52,7 @@ steps:
   condition: and(succeeded(), eq(variables.isMain, 'true'))
   inputs:
     command: pack
-    packagesToPack: '**/*.csproj;-:**/*Tests/*.csproj'
+    packagesToPack: 'Data8.PowerPlatform.Dataverse.Client\Data8.PowerPlatform.Dataverse.Client.csproj'
     nobuild: true
     versioningScheme: byEnvVar
     versionEnvVar: GITVERSION_NUGETVERSION
