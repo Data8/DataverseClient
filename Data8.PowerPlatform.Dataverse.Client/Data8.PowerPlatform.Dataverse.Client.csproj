@@ -2,10 +2,10 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
-    <Authors>Data8 Ltd</Authors>
+    <Authors>MarkMpn,Data8 Ltd</Authors>
     <Copyright>Copyright © 2021 Data8 Limited</Copyright>
     <RepositoryUrl>https://github.com/Data8/DataverseClient</RepositoryUrl>
-    <PackageReleaseNotes>First release</PackageReleaseNotes>
+    <PackageReleaseNotes>Added support for AD authentication</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/Data8/DataverseClient</PackageProjectUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Description>Provides a WS-Trust compatible client for connecting to on-premise IFD instances of Dynamics 365 from .NET Core.
@@ -40,16 +40,64 @@ void CreateRecord(IOrganizationService svc)
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>Dynamics;CommonDataService;CDS;PowerApps;PowerPlatform;CdsServiceClient;Dataverse;OnPrem;OnPremise;AD;IFD</PackageTags>
+    <PackageIcon>Data8.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\NSspi\NSspi\ByteWriter.cs" Link="NSspi\ByteWriter.cs" />
+    <Compile Include="..\NSspi\NSspi\Contexts\ClientContext.cs" Link="NSspi\Contexts\ClientContext.cs" />
+    <Compile Include="..\NSspi\NSspi\Contexts\Context.cs" Link="NSspi\Contexts\Context.cs" />
+    <Compile Include="..\NSspi\NSspi\Contexts\ContextAttrib.cs" Link="NSspi\Contexts\ContextAttrib.cs" />
+    <Compile Include="..\NSspi\NSspi\Contexts\ContextNativeMethods.cs" Link="NSspi\Contexts\ContextNativeMethods.cs" />
+    <Compile Include="..\NSspi\NSspi\Contexts\ContextQueries.cs" Link="NSspi\Contexts\ContextQueries.cs" />
+    <Compile Include="..\NSspi\NSspi\Contexts\ContextQueryAttrib.cs" Link="NSspi\Contexts\ContextQueryAttrib.cs" />
+    <Compile Include="..\NSspi\NSspi\Contexts\SafeContextHandle.cs" Link="NSspi\Contexts\SafeContextHandle.cs" />
+    <Compile Include="..\NSspi\NSspi\Contexts\SafeTokenHandle.cs" Link="NSspi\Contexts\SafeTokenHandle.cs" />
+    <Compile Include="..\NSspi\NSspi\Credentials\AuthData.cs" Link="NSspi\Credentials\AuthData.cs" />
+    <Compile Include="..\NSspi\NSspi\Credentials\Credential.cs" Link="NSspi\Credentials\Credential.cs" />
+    <Compile Include="..\NSspi\NSspi\Credentials\CredentialNativeMethods.cs" Link="NSspi\Credentials\CredentialNativeMethods.cs" />
+    <Compile Include="..\NSspi\NSspi\Credentials\CredentialQueryAttrib.cs" Link="NSspi\Credentials\CredentialQueryAttrib.cs" />
+    <Compile Include="..\NSspi\NSspi\Credentials\CredentialUse.cs" Link="NSspi\Credentials\CredentialUse.cs" />
+    <Compile Include="..\NSspi\NSspi\Credentials\CurrentCredential.cs" Link="NSspi\Credentials\CurrentCredential.cs" />
+    <Compile Include="..\NSspi\NSspi\Credentials\PasswordCredential.cs" Link="NSspi\Credentials\PasswordCredential.cs" />
+    <Compile Include="..\NSspi\NSspi\Credentials\QueryNameSupport.cs" Link="NSspi\Credentials\QueryNameSupport.cs" />
+    <Compile Include="..\NSspi\NSspi\Credentials\SafeCredentialHandle.cs" Link="NSspi\Credentials\SafeCredentialHandle.cs" />
+    <Compile Include="..\NSspi\NSspi\EnumMgr.cs" Link="NSspi\EnumMgr.cs" />
+    <Compile Include="..\NSspi\NSspi\NativeMethods.cs" Link="NSspi\NativeMethods.cs" />
+    <Compile Include="..\NSspi\NSspi\PackageNames.cs" Link="NSspi\PackageNames.cs" />
+    <Compile Include="..\NSspi\NSspi\PackageSupport.cs" Link="NSspi\PackageSupport.cs" />
+    <Compile Include="..\NSspi\NSspi\SecPkgInfo.cs" Link="NSspi\SecPkgInfo.cs" />
+    <Compile Include="..\NSspi\NSspi\SecureBuffer\SecureBuffer.cs" Link="NSspi\SecureBuffer\SecureBuffer.cs" />
+    <Compile Include="..\NSspi\NSspi\SecureBuffer\SecureBufferAdapter.cs" Link="NSspi\SecureBuffer\SecureBufferAdapter.cs" />
+    <Compile Include="..\NSspi\NSspi\SecureBuffer\SecureBufferDataRep.cs" Link="NSspi\SecureBuffer\SecureBufferDataRep.cs" />
+    <Compile Include="..\NSspi\NSspi\SecureBuffer\SecureBufferDesc.cs" Link="NSspi\SecureBuffer\SecureBufferDesc.cs" />
+    <Compile Include="..\NSspi\NSspi\SecureBuffer\SecureBufferType.cs" Link="NSspi\SecureBuffer\SecureBufferType.cs" />
+    <Compile Include="..\NSspi\NSspi\SecurityStatus.cs" Link="NSspi\SecurityStatus.cs" />
+    <Compile Include="..\NSspi\NSspi\SSPIException.cs" Link="NSspi\SSPIException.cs" />
+    <Compile Include="..\NSspi\NSspi\SspiHandle.cs" Link="NSspi\SspiHandle.cs" />
+    <Compile Include="..\NSspi\NSspi\TimeStamp.cs" Link="NSspi\TimeStamp.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.IdentityModel.Protocols.WsTrust" Version="6.8.0" />
-    <PackageReference Include="Microsoft.PowerPlatform.Dataverse.Client" Version="0.5.10" />
+    <PackageReference Include="Microsoft.PowerPlatform.Dataverse.Client" Version="0.6.1" />
+	<PackageReference Include="System.ServiceModel.Security" Version="4.9.0" Aliases="SSS" />
     <PackageReference Include="System.ServiceModel.Federation" Version="4.9.0" />
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\Data8.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="NSspi\Credentials\" />
+    <Folder Include="NSspi\Contexts\" />
+    <Folder Include="NSspi\SecureBuffer\" />
   </ItemGroup>
 
 </Project>

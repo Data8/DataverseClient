@@ -1,4 +1,4 @@
-# Data8 .NET Core Client SDK for On-Premise IFD Dynamics 365
+# Data8 .NET Core Client SDK for On-Premise Dynamics 365/CRM
 
 The [Microsoft.PowerPlatform.Dataverse.Client](https://github.com/microsoft/PowerPlatform-DataverseServiceClient)
 package provides an SDK for connecting to Dataverse & Dynamics 365 instances from .NET Core, but relies on OAuth
@@ -20,10 +20,12 @@ using Data8.PowerPlatform.Dataverse.Client;
 using Microsoft.PowerPlatform.Dataverse.Client;
 using Microsoft.Xrm.Sdk;
 
-var onPrem = new OnPremiseClient("https://org.crm.contoso.com/XRMServices/2011/Organization.svc", "AD\\username", "password!");
+var onPremIfd = new OnPremiseClient("https://org.crm.contoso.com/XRMServices/2011/Organization.svc", "AD\\username", "password!");
+var onPremAD = new OnPremiseClient("https://crm.contoso.com/org/XRMServices/2011/Organization.svc", "AD\\username", "password!");
 var online = new ServiceClient("AuthType=ClientSecret;Url=https://contoso.crm.dynamics.com;ClientId=637C79F7-AE71-4E9A-BD5B-1EC5EC9F397A;ClientSecret=p1UiydoIWwUH5AdMbiVBOrEYn8t4RXud");
 
-CreateRecord(onPrem);
+CreateRecord(onPremIfd);
+CreateRecord(onPremAD);
 CreateRecord(online);
 
 void CreateRecord(IOrganizationService svc)
@@ -39,12 +41,29 @@ void CreateRecord(IOrganizationService svc)
 
 ## Compatibility
 
-This package is designed to be used with on-premise Dynamics 365 instances configured with claims-based authentication.
-An Internet Facing Deployment is also supported but not required.
+This package is designed to be used with on-premise Dynamics 365 instances. Supported authentication types are:
 
-Integrated Windows Authentication is not supported.
+* Integrated Windows Authentication
+* Claims-Based Authentication
+* Internet Facing Deployment
 
 The package targets .NET Core 3.1 or later.
+
+## Notes on Integrated Windows Authentication
+
+If claims-based authentication is not configured on your Dynamics 365 instance, you will be using Integrated Windows
+Authentication. This library can authenticate to these instances, but only where the client is running on Windows.
+
+You can choose to supply a username (in the format `DOMAIN\Username` or `username@domain`) and password, or leave
+both blank to authenticate as the currently logged on user.
+
+## Thanks
+
+Many thanks to [Data8](https://www.data-8.co.uk/) for the time to develop this library and release it for public use.
+
+This project builds on the work of the [NSspi](https://github.com/antiduh/nsspi) library to handle the internals of
+working with the Windows authentication functions. Unfortunately the latest release of NSspi was missing a few
+required methods, so it is currently including some code from a fork of that library.
 
 ## Support and Contributing
 

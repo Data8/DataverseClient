@@ -1,0 +1,3 @@
+[submodule "NSspi"]
+	path = NSspi
+	url = https://github.com/MarkMpn/nsspi.git
