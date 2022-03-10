@@ -234,11 +234,25 @@ namespace Data8.PowerPlatform.Dataverse.Client.Wsdl
 
         [XmlElement("address", Namespace = Namespaces.soap12)]
         public SoapAddress Address { get; set; }
+
+        [XmlElement("EndpointReference", Namespace = Namespaces.wsa10)]
+        public EndpointReference EndpointReference { get; set; }
     }
 
     public class SoapAddress
     {
         [XmlAttribute("location")]
         public string Location { get; set; }
+    }
+
+    public class EndpointReference
+    {
+        [XmlElement(Namespace = "http://schemas.xmlsoap.org/ws/2006/02/addressingidentity")]
+        public Identity Identity { get; set; }
+    }
+
+    public class Identity
+    {
+        public string Upn { get; set; }
     }
 }
