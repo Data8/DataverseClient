@@ -11,6 +11,7 @@ pool:
 
 variables:
   buildConfiguration: 'Release'
+  isMain: $[eq(variables(['Build.SourceBranch'], 'refs/head/master'))]
 
 steps:
 - checkout: self
@@ -47,6 +48,7 @@ steps:
 
 - task: DotNetCoreCLI@2
   displayName: Pack
+  condition: and(succeeded(), eq(variables.isMain, 'true'))
   inputs:
     command: pack
     packagesToPack: '**/*.csproj;-:**/*Tests/*.csproj'
@@ -56,6 +58,7 @@ steps:
 
 - task: DotNetCoreCLI@2
   displayName: Push
+  condition: and(succeeded(), eq(variables.isMain, 'true'))
   inputs:
     command: custom
     custom: nuget
@@ -67,6 +70,7 @@ steps:
 
 - task: GitTag@5
   displayName: Label Source
+  condition: and(succeeded(), eq(variables.isMain, 'true'))
   inputs:
     workingdir: '$(Build.SourcesDirectory)'
     tag: 'v$(GitVersion.NuGetVersion)'
