@@ -120,7 +120,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                         .Where(wsdl => wsdl.Services != null)
                         .SelectMany(wsdl => wsdl.Services)
                         .Single()
-                        .Ports.Single()
+                        .Ports.Last()
                         .EndpointReference
                         .Identity
                         .Upn;
