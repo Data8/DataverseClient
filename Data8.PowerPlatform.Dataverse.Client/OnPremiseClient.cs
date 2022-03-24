@@ -97,6 +97,9 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// </remarks>
         public OnPremiseClient(string url, ClientCredentials credentials)
         {
+            if (!new Uri(url).Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
+                throw new NotSupportedException("Only https connections are supported");
+
             // Get the WSDL of the target to find the authentication type and the URL of the STS for Federated auth
             var wsdl = Wsdl.WsdlLoader.Load(url + "?wsdl&sdkversion=" + _sdkMajorVersion).ToList();
 
@@ -120,7 +123,9 @@ namespace Data8.PowerPlatform.Dataverse.Client
                         .Where(wsdl => wsdl.Services != null)
                         .SelectMany(wsdl => wsdl.Services)
                         .Single()
-                        .Ports.Single()
+                        .Ports
+                        .Where(port => new Uri(port.Address.Location).Scheme.Equals(new Uri(url).Scheme, StringComparison.OrdinalIgnoreCase))
+                        .Single()
                         .EndpointReference
                         .Identity
                         .Upn;
