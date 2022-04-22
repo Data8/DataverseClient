@@ -7,7 +7,9 @@ using System;
 using System.ServiceModel;
 using System.ServiceModel.Channels;
 using System.ServiceModel.Federation;
+using System.ServiceModel.Security;
 using Microsoft.Xrm.Sdk;
+using WSFederationHttpBinding = System.ServiceModel.Federation.WSFederationHttpBinding;
 
 namespace Data8.PowerPlatform.Dataverse.Client
 {
@@ -24,7 +26,15 @@ namespace Data8.PowerPlatform.Dataverse.Client
             public ServerEntropyWS2007HttpBinding(SecurityMode securityMode) : base(securityMode)
             {
             }
-
+#if NET462_OR_GREATER
+            protected override System.ServiceModel.Channels.SecurityBindingElement CreateMessageSecurity()
+            {
+                // Use server entropy to match SDK
+                var o = base.CreateMessageSecurity();
+                o.KeyEntropyMode = SecurityKeyEntropyMode.ServerEntropy;
+                return o;
+            }
+#else
             protected override SSS.System.ServiceModel.Channels.SecurityBindingElement CreateMessageSecurity()
             {
                 // Use server entropy to match SDK
@@ -32,6 +42,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 o.KeyEntropyMode = SSS.System.ServiceModel.Security.SecurityKeyEntropyMode.ServerEntropy;
                 return o;
             }
+#endif
         }
 
         /// <summary>
