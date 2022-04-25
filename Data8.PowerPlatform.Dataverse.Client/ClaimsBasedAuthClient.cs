@@ -8,11 +8,13 @@ using System.ServiceModel;
 using System.ServiceModel.Channels;
 using System.ServiceModel.Federation;
 using Microsoft.Xrm.Sdk;
-using WSFederationHttpBinding = System.ServiceModel.Federation.WSFederationHttpBinding;
 
 #if NET462_OR_GREATER
+using WSFederationHttpBinding = System.ServiceModel.Federation.WSFederationHttpBinding;
+
 using SecurityBindingElement = System.ServiceModel.Channels.SecurityBindingElement;
 using SecurityKeyEntropyMode = System.ServiceModel.Security.SecurityKeyEntropyMode;
+
 #else
 using SecurityBindingElement = SSS.System.ServiceModel.Channels.SecurityBindingElement;
 using SecurityKeyEntropyMode = SSS.System.ServiceModel.Security.SecurityKeyEntropyMode;
