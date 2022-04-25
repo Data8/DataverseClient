@@ -1,14 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFrameworks>net462;net472;net48;netcoreapp3.1</TargetFrameworks>
     <Authors>MarkMpn,Data8 Ltd</Authors>
     <Copyright>Copyright © 2021 Data8 Limited</Copyright>
     <RepositoryUrl>https://github.com/Data8/DataverseClient</RepositoryUrl>
     <PackageReleaseNotes>Added support for AD authentication</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/Data8/DataverseClient</PackageProjectUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Description>Provides a WS-Trust compatible client for connecting to on-premise IFD instances of Dynamics 365 from .NET Core.
+	  <Description>Provides a WS-Trust compatible client for connecting to on-premise IFD instances of Dynamics 365 from .NET Core.
 
 This package builds on top of Microsoft.PowerPlatform.Dataverse.Client and offers an alternative IOrganizationService implementation using WS-Trust.
 This allows you to connect using the URL of the organization service, username and password without any additional
@@ -85,6 +85,10 @@ void CreateRecord(IOrganizationService svc)
 	<PackageReference Include="System.ServiceModel.Security" Version="4.9.0" Aliases="SSS" />
     <PackageReference Include="System.ServiceModel.Federation" Version="4.9.0" />
   </ItemGroup>
+
+	<ItemGroup Condition="'$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'net472' or '$(TargetFramework)' == 'net48'">
+		<Reference Include="System.ServiceModel" />
+	</ItemGroup>
 
   <ItemGroup>
     <None Include="..\Data8.png">
