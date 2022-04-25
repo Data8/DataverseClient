@@ -2,8 +2,6 @@
 // System.ServiceModel.Security package. That package is now referenced with the alias SSS so we can specify
 // which version we want to use.
 extern alias SSS;
-
-using System;
 using System.ServiceModel;
 using System.ServiceModel.Channels;
 using System.ServiceModel.Federation;
@@ -78,12 +76,12 @@ namespace Data8.PowerPlatform.Dataverse.Client
             binding.Security.Message.EstablishSecurityContext = false;
 
             // Increase maximum allowed sizes to allow receiving large messages
-            binding.MaxReceivedMessageSize = Int32.MaxValue;
-            binding.MaxBufferPoolSize = Int32.MaxValue;
-            binding.ReaderQuotas.MaxStringContentLength = Int32.MaxValue;
-            binding.ReaderQuotas.MaxArrayLength = Int32.MaxValue;
-            binding.ReaderQuotas.MaxBytesPerRead = Int32.MaxValue;
-            binding.ReaderQuotas.MaxNameTableCharCount = Int32.MaxValue;
+            binding.MaxReceivedMessageSize = int.MaxValue;
+            binding.MaxBufferPoolSize = int.MaxValue;
+            binding.ReaderQuotas.MaxStringContentLength = int.MaxValue;
+            binding.ReaderQuotas.MaxArrayLength = int.MaxValue;
+            binding.ReaderQuotas.MaxBytesPerRead = int.MaxValue;
+            binding.ReaderQuotas.MaxNameTableCharCount = int.MaxValue;
 
             return binding;
         }

@@ -4,7 +4,6 @@ using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Query;
 using NSspi.Contexts;
 using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Runtime.Serialization;
 using System.ServiceModel.Channels;
@@ -41,7 +40,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             _upn = upn;
             Timeout = TimeSpan.FromSeconds(30);
 
-            if (!String.IsNullOrEmpty(username))
+            if (!string.IsNullOrEmpty(username))
             {
                 // Split username into domain + username
                 var domain = "";
@@ -95,7 +94,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             // Set up the SSPI context
             NSspi.Credentials.Credential cred;
 
-            if (String.IsNullOrEmpty(_username))
+            if (string.IsNullOrEmpty(_username))
                 cred = new NSspi.Credentials.CurrentCredential(NSspi.PackageNames.Negotiate, NSspi.Credentials.CredentialUse.Outbound);
             else
                 cred = new NSspi.Credentials.PasswordCredential(_domain, _username, _password, NSspi.PackageNames.Negotiate, NSspi.Credentials.CredentialUse.Outbound);
@@ -226,7 +225,6 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 {
                     var reader = XmlReader.Create(respStream, new XmlReaderSettings());
                     var responseMessage = Message.CreateMessage(reader, 0x10000, MessageVersion.Soap12WSAddressing10);
-                    var action = responseMessage.Headers.Action;
 
                     using (var bodyReader = responseMessage.GetReaderAtBodyContents())
                     {

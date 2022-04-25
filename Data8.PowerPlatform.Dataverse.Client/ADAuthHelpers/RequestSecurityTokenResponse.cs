@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Security.Cryptography;
-using System.ServiceModel.Channels;
-using System.Text;
 using System.Xml;
 
 namespace Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers
@@ -11,7 +7,7 @@ namespace Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers
     {
         public RequestSecurityTokenResponse(string context, byte[] token)
         {
-            if (String.IsNullOrEmpty(context))
+            if (string.IsNullOrEmpty(context))
                 throw new ArgumentNullException(nameof(context));
 
             if (token == null)
@@ -77,8 +73,8 @@ namespace Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers
                     var rst = clone.SelectSingleNode("//*[local-name()='RequestedSecurityToken']");
                     var rpt = clone.SelectSingleNode("//*[local-name()='RequestedProofToken']");
 
-                    rst.ParentNode.RemoveChild(rst);
-                    rpt.ParentNode.RemoveChild(rpt);
+                    rst?.ParentNode?.RemoveChild(rst);
+                    rpt?.ParentNode?.RemoveChild(rpt);
 
                     auth.AddToDigest(clone);
                 }

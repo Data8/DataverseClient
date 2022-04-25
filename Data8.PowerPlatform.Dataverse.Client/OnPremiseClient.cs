@@ -6,6 +6,7 @@ using System.Linq;
 using System.ServiceModel;
 using System.ServiceModel.Channels;
 using System.ServiceModel.Description;
+using Data8.PowerPlatform.Dataverse.Client.Wsdl;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
 
@@ -30,7 +31,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             {
                 if (svc is IContextChannel channel)
                 {
-                    _scope = new OperationContextScope((IContextChannel)svc);
+                    _scope = new OperationContextScope(channel);
 
                     OperationContext.Current.OutgoingMessageHeaders.Add(MessageHeader.CreateHeader("SdkClientVersion", Wsdl.Namespaces.tns, _sdkVersion));
                     OperationContext.Current.OutgoingMessageHeaders.Add(MessageHeader.CreateHeader("UserType", Wsdl.Namespaces.tns, "CrmUser"));
@@ -61,7 +62,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             // Get the version number of the SDK we're using
             var assembly = typeof(IOrganizationService).Assembly;
 
-            if (!String.IsNullOrEmpty(assembly.Location) && File.Exists(assembly.Location))
+            if (!string.IsNullOrEmpty(assembly.Location) && File.Exists(assembly.Location))
             {
                 var ver = FileVersionInfo.GetVersionInfo(assembly.Location);
                 _sdkVersion = ver.FileVersion;
@@ -109,9 +110,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 .ToList();
 
             var authenticationPolicy = policies
-                .Select(p => p.FindPolicyItem<Wsdl.AuthenticationPolicy>())
-                .Where(t => t != null)
-                .FirstOrDefault();
+                .Select(p => p.FindPolicyItem<AuthenticationPolicy>())
+                .FirstOrDefault(t => t != null);
 
             if (authenticationPolicy == null)
                 throw new InvalidOperationException("Unable to find authentication policy");
@@ -124,8 +124,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                         .SelectMany(w => w.Services)
                         .Single()
                         .Ports
-                        .Where(port => new Uri(port.Address.Location).Scheme.Equals(new Uri(url).Scheme, StringComparison.OrdinalIgnoreCase))
-                        .Single()
+                        .Single(port => new Uri(port.Address.Location).Scheme.Equals(new Uri(url).Scheme, StringComparison.OrdinalIgnoreCase))
                         .EndpointReference
                         .Identity
                         .Upn;
@@ -147,9 +146,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
         private IOrganizationService ConnectFederated(string url, ClientCredentials credentials, List<Wsdl.Policy> policies)
         {
             var tokenEndpoint = policies
-                .Select(p => p.FindPolicyItem<Wsdl.EndorsingSupportingTokens>())
-                .Where(t => t != null)
-                .FirstOrDefault();
+                .Select(p => p.FindPolicyItem<EndorsingSupportingTokens>())
+                .FirstOrDefault(t => t != null);
 
             var issuer = tokenEndpoint.Policy.FindPolicyItem<Wsdl.IssuedToken>();
             var issuerMetadataEndpoint = issuer.Issuer.Metadata.Metadata.MetadataSection.MetadataReference.Address;
@@ -162,8 +160,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 .ToList();
 
             var usernameWsTrust13Policy = issuerPolicies
-                .Where(p => p.FindPolicyItem<Wsdl.SignedEncryptedSupportingTokens>()?.Policy.FindPolicyItem<Wsdl.UsernameToken>() != null && p.FindPolicyItem<Wsdl.Trust13>() != null)
-                .FirstOrDefault();
+                .FirstOrDefault(p => p.FindPolicyItem<SignedEncryptedSupportingTokens>()?.Policy.FindPolicyItem<UsernameToken>() != null && p.FindPolicyItem<Trust13>() != null);
 
             var issuerBindings = issuerWsdls
                 .Where(wsdl => wsdl.Bindings != null)
@@ -171,8 +168,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 .ToList();
 
             var usernameWsTrust13Binding = issuerBindings
-                .Where(b => b.PolicyReference.Uri == "#" + usernameWsTrust13Policy.Id)
-                .FirstOrDefault();
+                .FirstOrDefault(b => b.PolicyReference.Uri == "#" + usernameWsTrust13Policy.Id);
 
             var issuerPorts = issuerWsdls
                 .Where(wsdl => wsdl.Services != null)
@@ -181,8 +177,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 .ToList();
 
             var usernameWsTrust13Port = issuerPorts
-                .Where(p => p.Binding == "tns:" + usernameWsTrust13Binding.Name)
-                .FirstOrDefault();
+                .FirstOrDefault(p => p.Binding == "tns:" + usernameWsTrust13Binding.Name);
 
             // Create the SOAP client to authenticate against the STS
             var client = new ClaimsBasedAuthClient(url, usernameWsTrust13Port.Address.Location);
@@ -214,8 +209,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
             {
                 if (_service is IContextChannel channel)
                     return channel.OperationTimeout;
-                else
-                    return ((ADAuthClient)_service).Timeout;
+                
+                return ((ADAuthClient)_service).Timeout;
             }
             set
             {
