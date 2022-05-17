@@ -104,8 +104,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
             var wsdl = Wsdl.WsdlLoader.Load(url + "?wsdl&sdkversion=" + _sdkMajorVersion).ToList();
 
             var policies = wsdl
-                .Where(wsdl => wsdl.Policies != null)
-                .SelectMany(wsdl => wsdl.Policies)
+                .Where(w => w.Policies != null)
+                .SelectMany(w => w.Policies)
                 .ToList();
 
             var authenticationPolicy = policies
@@ -120,8 +120,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
             {
                 case Wsdl.AuthenticationType.ActiveDirectory:
                     var identity = wsdl
-                        .Where(wsdl => wsdl.Services != null)
-                        .SelectMany(wsdl => wsdl.Services)
+                        .Where(w => w.Services != null)
+                        .SelectMany(w => w.Services)
                         .Single()
                         .Ports
                         .Where(port => new Uri(port.Address.Location).Scheme.Equals(new Uri(url).Scheme, StringComparison.OrdinalIgnoreCase))
