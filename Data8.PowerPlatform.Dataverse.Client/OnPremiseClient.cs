@@ -127,10 +127,9 @@ namespace Data8.PowerPlatform.Dataverse.Client
                         .Where(port => new Uri(port.Address.Location).Scheme.Equals(new Uri(url).Scheme, StringComparison.OrdinalIgnoreCase))
                         .Single()
                         .EndpointReference
-                        .Identity
-                        .Upn;
+                        .Identity;
 
-                    _service = ConnectAD(url, credentials, identity);
+                    _service = ConnectAD(url, credentials, identity?.Upn ?? identity?.Spn);
                     break;
 
                 case Wsdl.AuthenticationType.Federation:
