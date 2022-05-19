@@ -100,43 +100,40 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 cred = new NSspi.Credentials.PasswordCredential(_domain, _username, _password, NSspi.PackageNames.Negotiate, NSspi.Credentials.CredentialUse.Outbound);
 
             _context = new ClientContext(cred, _upn, ContextAttrib.ReplayDetect | ContextAttrib.SequenceDetect | ContextAttrib.Confidentiality | ContextAttrib.InitIdentify);
-            _context.Init(null, out var token);
+            var state = _context.Init(null, out var token);
 
-            // Keep exchanging tokens until we get a full RSTR
-            RequestSecurityTokenResponseCollection finalResponse = null;
+            if (state != NSspi.SecurityStatus.ContinueNeeded)
+                throw new ApplicationException("Error authenticating with the server: " + state);
 
             // Keep a hash of all the RSTs and RSTRs that have been sent so we can validate the authenticator
             // at the end.
             var auth = new Authenticator();
 
+            var rst = new RequestSecurityToken(token);
+            var resp = rst.Execute(_url, auth);
+
+            var finalResponse = resp as RequestSecurityTokenResponseCollection;
+
+            // Keep exchanging tokens until we get a full RSTR
             while (finalResponse == null)
             {
-                var rst = new RequestSecurityToken(token);
-                var resp = rst.Execute(_url, auth);
-
-                finalResponse = resp as RequestSecurityTokenResponseCollection;
-
-                if (finalResponse != null)
-                {
-                    var state = _context.Init(finalResponse.Responses[0].BinaryExchange.Token, out _);
-
-                    if (state != NSspi.SecurityStatus.OK)
-                        throw new ApplicationException("Error authenticating with the server");
-
-                    break;
-                }
-
                 if (resp is RequestSecurityTokenResponse r)
                 {
-                    var state = _context.Init(r.BinaryExchange.Token, out token);
+                    state = _context.Init(r.BinaryExchange.Token, out token);
 
-                    if (state == NSspi.SecurityStatus.OK)
-                    {
-                        resp = new RequestSecurityTokenResponse(r.Context, token).Execute(_url, auth);
-                        finalResponse = resp as RequestSecurityTokenResponseCollection;
-                    }
+                    if (state != NSspi.SecurityStatus.OK && state != NSspi.SecurityStatus.ContinueNeeded)
+                        throw new ApplicationException("Error authenticating with the server: " + state);
+
+                    resp = new RequestSecurityTokenResponse(r.Context, token).Execute(_url, auth);
+                    finalResponse = resp as RequestSecurityTokenResponseCollection;
                 }
             }
+
+            if (state != NSspi.SecurityStatus.OK)
+                state = _context.Init(finalResponse.Responses[0].BinaryExchange.Token, out _);
+
+            if (state != NSspi.SecurityStatus.OK)
+                throw new ApplicationException("Error authenticating with the server: " + state);
 
             var wrappedToken = finalResponse.Responses[0].RequestedProofToken.CipherValue;
             _tokenExpires = finalResponse.Responses[0].Lifetime.Expires;

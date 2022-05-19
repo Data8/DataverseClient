@@ -41,13 +41,6 @@ steps:
     arguments: '--configuration $(buildConfiguration) /p:Version=$(GitVersion.NuGetVersion)'
 
 - task: DotNetCoreCLI@2
-  displayName: Test
-  inputs:
-    command: test
-    projects: '**/*Tests/*.csproj'
-    arguments: '--configuration $(buildConfiguration) --no-build'
-
-- task: DotNetCoreCLI@2
   displayName: Pack
   condition: and(succeeded(), eq(variables.isMain, 'true'))
   inputs:
@@ -67,7 +60,7 @@ steps:
       push $(Build.ArtifactStagingDirectory)\*.nupkg
       -s https://api.nuget.org/v3/index.json
       -k $(NuGetApiKey)
-      --no-symbols true
+      --no-symbols
 
 - task: GitTag@5
   displayName: Label Source
