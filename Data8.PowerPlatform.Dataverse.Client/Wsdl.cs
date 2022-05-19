@@ -254,5 +254,7 @@ namespace Data8.PowerPlatform.Dataverse.Client.Wsdl
     public class Identity
     {
         public string Upn { get; set; }
+
+        public string Spn { get; set; }
     }
 }
