@@ -75,6 +75,18 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <summary>
+        /// Creates a new <see cref="OnPremiseClient"/> using default credentials
+        /// </summary>
+        /// <param name="url">The URL of the organization service to connect to</param>
+        /// <remarks>
+        /// The <paramref name="url"/> must include the full path to the organization service, e.g. https://org.crm.contoso.com/XRMServices/2011/Organization.svc
+        /// </remarks>
+        public OnPremiseClient(string url)
+            : this(url, new ClientCredentials())
+        {
+        }
+
+        /// <summary>
         /// Creates a new <see cref="OnPremiseClient"/>
         /// </summary>
         /// <param name="url">The URL of the organization service to connect to</param>
