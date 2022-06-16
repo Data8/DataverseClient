@@ -243,7 +243,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        public virtual void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
         {
             using (StartScope())
             {
@@ -252,7 +252,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public Guid Create(Entity entity)
+        public virtual Guid Create(Entity entity)
         {
             using (StartScope())
             {
@@ -261,7 +261,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public void Delete(string entityName, Guid id)
+        public virtual void Delete(string entityName, Guid id)
         {
             using (StartScope())
             {
@@ -270,7 +270,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public void Disassociate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        public virtual void Disassociate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
         {
             using (StartScope())
             {
@@ -279,7 +279,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public OrganizationResponse Execute(OrganizationRequest request)
+        public virtual OrganizationResponse Execute(OrganizationRequest request)
         {
             using (StartScope())
             {
@@ -288,7 +288,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public Entity Retrieve(string entityName, Guid id, ColumnSet columnSet)
+        public virtual Entity Retrieve(string entityName, Guid id, ColumnSet columnSet)
         {
             using (StartScope())
             {
@@ -297,7 +297,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public EntityCollection RetrieveMultiple(QueryBase query)
+        public virtual EntityCollection RetrieveMultiple(QueryBase query)
         {
             using (StartScope())
             {
@@ -306,7 +306,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public void Update(Entity entity)
+        public virtual void Update(Entity entity)
         {
             using (StartScope())
             {
