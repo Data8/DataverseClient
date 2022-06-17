@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers
+﻿namespace Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers
 {
     class Namespaces
     {

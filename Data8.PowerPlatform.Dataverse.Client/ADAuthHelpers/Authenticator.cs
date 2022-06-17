@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -35,7 +34,7 @@ namespace Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers
             using (var stream = (Stream)trans.GetOutput(typeof(Stream)))
             using (var reader = new StreamReader(stream))
             {
-                var text = reader.ReadToEnd();
+                reader.ReadToEnd();
                 stream.Position = 0;
 
                 var buf = new byte[1024];
@@ -86,7 +85,7 @@ namespace Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers
 
                 byte[] b1 = server;
                 byte[] b2 = new byte[bufferSize];
-                byte[] temp = null;
+                byte[] temp;
                 byte[] psha = new byte[sizeBytes];
 
                 while (i < sizeBytes)

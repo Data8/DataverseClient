@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ServiceModel.Channels;
-using System.Text;
 using System.Xml;
 
 namespace Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers
@@ -13,10 +11,7 @@ namespace Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers
 
         public BinaryExchange(byte[] token) : base(isBuffered: true)
         {
-            if (token == null)
-                throw new ArgumentNullException(nameof(token));
-
-            Token = token;
+            Token = token ?? throw new ArgumentNullException(nameof(token));
         }
 
         public byte[] Token { get; private set; }

@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Net;
-using System.Security.Cryptography;
 using System.ServiceModel;
 using System.ServiceModel.Channels;
 using System.Text;
@@ -59,17 +57,19 @@ namespace Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers
                 {
                     var reader = XmlReader.Create(respStream, new XmlReaderSettings());
                     var responseMessage = Message.CreateMessage(reader, 0x10000, MessageVersion.Soap12WSAddressing10);
-                    var responseAction = responseMessage.Headers.Action;
 
                     using (var bodyReader = responseMessage.GetReaderAtBodyContents())
                     {
-                        // Read the response as the appropriate type
-                        if (bodyReader.LocalName == "RequestSecurityTokenResponse")
-                            return RequestSecurityTokenResponse.Read(bodyReader, auth, false);
-                        else if (bodyReader.LocalName == "RequestSecurityTokenResponseCollection")
-                            return RequestSecurityTokenResponseCollection.Read(bodyReader, auth);
-                        else
-                            throw new NotSupportedException("Unexpected response element " + bodyReader.LocalName);
+                        switch (bodyReader.LocalName)
+                        {
+                            // Read the response as the appropriate type
+                            case "RequestSecurityTokenResponse":
+                                return RequestSecurityTokenResponse.Read(bodyReader, auth, false);
+                            case "RequestSecurityTokenResponseCollection":
+                                return RequestSecurityTokenResponseCollection.Read(bodyReader, auth);
+                            default:
+                                throw new NotSupportedException("Unexpected response element " + bodyReader.LocalName);
+                        }
                     }
                 }
             }

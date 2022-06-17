@@ -1,5 +1,4 @@
 ﻿using System;
-using System.ServiceModel.Channels;
 using System.Xml;
 
 namespace Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers
