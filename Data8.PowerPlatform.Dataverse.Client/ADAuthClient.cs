@@ -2,9 +2,13 @@
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Query;
+#if NET7_0_OR_GREATER
+using System.Buffers;
+using System.Net.Security;
+#else
 using NSspi.Contexts;
+#endif
 using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Runtime.Serialization;
 using System.ServiceModel.Channels;
@@ -23,7 +27,6 @@ namespace Data8.PowerPlatform.Dataverse.Client
         private readonly string _username;
         private readonly string _password;
         private readonly string _upn;
-        private ClientContext _context;
         private DateTime _tokenExpires;
         private byte[] _proofToken;
         private SecurityContextToken _securityContextToken;
@@ -37,6 +40,11 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// <param name="upn">The UPN the server process is running under</param>
         public ADAuthClient(string url, string username, string password, string upn)
         {
+#if !NET7_0_OR_GREATER
+            if (Environment.OSVersion.Platform == System.PlatformID.Unix)
+                throw new PlatformNotSupportedException("Windows authentication is only available on Windows clients or when using .NET 7");
+#endif
+
             _url = url;
             _upn = upn;
             Timeout = TimeSpan.FromSeconds(30);
@@ -92,6 +100,31 @@ namespace Data8.PowerPlatform.Dataverse.Client
             if (_tokenExpires > DateTime.UtcNow.AddSeconds(10))
                 return;
 
+#if NET7_0_OR_GREATER
+            NetworkCredential cred;
+
+            if (String.IsNullOrEmpty(_username))
+                cred = CredentialCache.DefaultNetworkCredentials;
+            else
+                cred = new NetworkCredential(_username, _password, _domain);
+
+            var context = new NegotiateAuthentication(new NegotiateAuthenticationClientOptions
+            {
+                AllowedImpersonationLevel = System.Security.Principal.TokenImpersonationLevel.Identification,
+                Credential = cred,
+                RequiredProtectionLevel = ProtectionLevel.EncryptAndSign,
+                TargetName = _upn
+            });
+            var token = context.GetOutgoingBlob(Array.Empty<byte>(), out var state);
+
+            if (state != NegotiateAuthenticationStatusCode.ContinueNeeded)
+            {
+                if (state == NegotiateAuthenticationStatusCode.Unsupported && Environment.OSVersion.Platform == PlatformID.Unix)
+                    throw new ApplicationException("Error authenticating with the server: " + state + ". Ensure you have the gss-ntlmssp package installed.");
+                else
+                    throw new ApplicationException("Error authenticating with the server: " + state);
+            }
+#else
             // Set up the SSPI context
             NSspi.Credentials.Credential cred;
 
@@ -100,11 +133,12 @@ namespace Data8.PowerPlatform.Dataverse.Client
             else
                 cred = new NSspi.Credentials.PasswordCredential(_domain, _username, _password, NSspi.PackageNames.Negotiate, NSspi.Credentials.CredentialUse.Outbound);
 
-            _context = new ClientContext(cred, _upn, ContextAttrib.ReplayDetect | ContextAttrib.SequenceDetect | ContextAttrib.Confidentiality | ContextAttrib.InitIdentify);
-            var state = _context.Init(null, out var token);
+            var context = new ClientContext(cred, _upn, ContextAttrib.ReplayDetect | ContextAttrib.SequenceDetect | ContextAttrib.Confidentiality | ContextAttrib.InitIdentify);
+            var state = context.Init(null, out var token);
 
             if (state != NSspi.SecurityStatus.ContinueNeeded)
                 throw new ApplicationException("Error authenticating with the server: " + state);
+#endif
 
             // Keep a hash of all the RSTs and RSTRs that have been sent so we can validate the authenticator
             // at the end.
@@ -120,26 +154,50 @@ namespace Data8.PowerPlatform.Dataverse.Client
             {
                 if (resp is RequestSecurityTokenResponse r)
                 {
-                    state = _context.Init(r.BinaryExchange.Token, out token);
+#if NET7_0_OR_GREATER
+                    token = context.GetOutgoingBlob(r.BinaryExchange.Token, out state);
+
+                    if (state != NegotiateAuthenticationStatusCode.Completed && state != NegotiateAuthenticationStatusCode.ContinueNeeded)
+                        throw new ApplicationException("Error authenticating with the server: " + state);
+#else
+                    state = context.Init(r.BinaryExchange.Token, out token);
 
                     if (state != NSspi.SecurityStatus.OK && state != NSspi.SecurityStatus.ContinueNeeded)
                         throw new ApplicationException("Error authenticating with the server: " + state);
+#endif
 
                     resp = new RequestSecurityTokenResponse(r.Context, token).Execute(_url, auth);
                     finalResponse = resp as RequestSecurityTokenResponseCollection;
                 }
             }
 
+            var wrappedToken = finalResponse.Responses[0].RequestedProofToken.CipherValue;
+            _tokenExpires = finalResponse.Responses[0].Lifetime.Expires;
+            _securityContextToken = finalResponse.Responses[0].RequestedSecurityToken;
+
+#if NET7_0_OR_GREATER
+            if (state != NegotiateAuthenticationStatusCode.Completed)
+                token = context.GetOutgoingBlob(finalResponse.Responses[0].BinaryExchange.Token, out state);
+
+            if (state != NegotiateAuthenticationStatusCode.Completed)
+                throw new ApplicationException("Error authenticating with the server: " + state);
+
+            var unwrappedTokenWriter = new ArrayBufferWriter<byte>(wrappedToken.Length);
+            state = context.Unwrap(wrappedToken, unwrappedTokenWriter, out _);
+
+            if (state != NegotiateAuthenticationStatusCode.Completed)
+                throw new ApplicationException("Error authenticating with the server: " + state);
+
+            _proofToken = unwrappedTokenWriter.WrittenSpan.ToArray();
+#else
             if (state != NSspi.SecurityStatus.OK)
-                state = _context.Init(finalResponse.Responses[0].BinaryExchange.Token, out _);
+                state = context.Init(finalResponse.Responses[0].BinaryExchange.Token, out _);
 
             if (state != NSspi.SecurityStatus.OK)
                 throw new ApplicationException("Error authenticating with the server: " + state);
 
-            var wrappedToken = finalResponse.Responses[0].RequestedProofToken.CipherValue;
-            _tokenExpires = finalResponse.Responses[0].Lifetime.Expires;
-            _proofToken = _context.Decrypt(wrappedToken, true);
-            _securityContextToken = finalResponse.Responses[0].RequestedSecurityToken;
+            _proofToken = context.Decrypt(wrappedToken, true);
+#endif
 
             // Check the authenticator is valid
             auth.Validate(_proofToken, finalResponse.Responses[1].Authenticator.Token);
