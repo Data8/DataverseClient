@@ -40,6 +40,11 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// <param name="upn">The UPN the server process is running under</param>
         public ADAuthClient(string url, string username, string password, string upn)
         {
+#if !NET7_0_OR_GREATER
+            if (Environment.OSVersion.Platform == System.PlatformID.Unix)
+                throw new PlatformNotSupportedException("Windows authentication is only available on Windows clients or when using .NET 7");
+#endif
+
             _url = url;
             _upn = upn;
             Timeout = TimeSpan.FromSeconds(30);
@@ -113,7 +118,12 @@ namespace Data8.PowerPlatform.Dataverse.Client
             var token = context.GetOutgoingBlob(Array.Empty<byte>(), out var state);
 
             if (state != NegotiateAuthenticationStatusCode.ContinueNeeded)
-                throw new ApplicationException("Error authenticating with the server: " + state);
+            {
+                if (state == NegotiateAuthenticationStatusCode.Unsupported && Environment.OSVersion.Platform == PlatformID.Unix)
+                    throw new ApplicationException("Error authenticating with the server: " + state + ". Ensure you have the gss-ntlmssp package installed.");
+                else
+                    throw new ApplicationException("Error authenticating with the server: " + state);
+            }
 #else
             // Set up the SSPI context
             NSspi.Credentials.Credential cred;
