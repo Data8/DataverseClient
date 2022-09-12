@@ -47,12 +47,15 @@ This package is designed to be used with on-premise Dynamics 365 instances. Supp
 * Claims-Based Authentication
 * Internet Facing Deployment
 
-The package targets .NET Core 3.1 or later.
+The package targets .NET Core 3.1 or later. It can also be used on .NET Framework 4.6.2 or later.
 
 ## Notes on Integrated Windows Authentication
 
 If claims-based authentication is not configured on your Dynamics 365 instance, you will be using Integrated Windows
-Authentication. This library can authenticate to these instances, but only where the client is running on Windows.
+Authentication. This library can authenticate to these instances, but only where the client is either:
+
+* running on Windows, or
+* running on Linux under .NET 7 and with the `gss-ntlmssp` package installed
 
 You can choose to supply a username (in the format `DOMAIN\Username` or `username@domain`) and password, or leave
 both blank to authenticate as the currently logged on user.
@@ -62,8 +65,8 @@ both blank to authenticate as the currently logged on user.
 Many thanks to [Data8](https://www.data-8.co.uk/) for the time to develop this library and release it for public use.
 
 This project builds on the work of the [NSspi](https://github.com/antiduh/nsspi) library to handle the internals of
-working with the Windows authentication functions. Unfortunately the latest release of NSspi was missing a few
-required methods, so it is currently including some code from a fork of that library.
+working with the Windows authentication functions pre-.NET 7. Unfortunately the latest release of NSspi was missing
+a few required methods, so it is currently including some code from a fork of that library.
 
 ## Support and Contributing
 
