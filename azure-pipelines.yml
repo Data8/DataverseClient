@@ -17,6 +17,11 @@ steps:
 - checkout: self
   persistCredentials: true
   submodules: true
+  
+- task: UseDotNet@2
+  inputs:
+    version: '7.0.x'
+    includePreviewVersions: true
 
 - task: NuGetCommand@2
   displayName: Install GitVersion
