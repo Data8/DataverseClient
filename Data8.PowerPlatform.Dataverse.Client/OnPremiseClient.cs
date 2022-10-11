@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.ServiceModel;
 using System.ServiceModel.Channels;
 using System.ServiceModel.Description;
 using Microsoft.Xrm.Sdk;
+using Microsoft.Xrm.Sdk.Client;
 using Microsoft.Xrm.Sdk.Query;
 
 namespace Data8.PowerPlatform.Dataverse.Client
@@ -51,6 +53,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             }
         }
 
+        private readonly ClaimsBasedAuthClient _cbac;
         private readonly IOrganizationService _service;
 
         private static readonly string _sdkVersion;
@@ -133,7 +136,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
                     break;
 
                 case Wsdl.AuthenticationType.Federation:
-                    _service = ConnectFederated(url, credentials, policies);
+                    _cbac = ConnectFederated(url, credentials, policies);
+                    _service = _cbac.ChannelFactory.CreateChannel();
                     break;
 
                 default:
@@ -143,7 +147,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             Timeout = TimeSpan.FromMinutes(2);
         }
 
-        private IOrganizationService ConnectFederated(string url, ClientCredentials credentials, List<Wsdl.Policy> policies)
+        private ClaimsBasedAuthClient ConnectFederated(string url, ClientCredentials credentials, List<Wsdl.Policy> policies)
         {
             var tokenEndpoint = policies
                 .Select(p => p.FindPolicyItem<Wsdl.EndorsingSupportingTokens>())
@@ -187,7 +191,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             var client = new ClaimsBasedAuthClient(url, usernameWsTrust13Port.Address.Location);
             client.ChannelFactory.Credentials.UserName.UserName = credentials.UserName.UserName;
             client.ChannelFactory.Credentials.UserName.Password = credentials.UserName.Password;
-            return client.ChannelFactory.CreateChannel();
+            return client;
         }
 
         private IOrganizationService ConnectAD(string url, ClientCredentials credentials, string identity)
@@ -223,6 +227,36 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 else
                     ((ADAuthClient)_service).Timeout = value;
             }
+        }
+
+        /// <summary>
+        /// Enables support for the early-bound entity types.
+        /// </summary>
+        /// <remarks>
+        /// Early bound types will be loaded from an already-loaded assembly that is marked with the <see cref="ProxyTypesAssemblyAttribute"/>
+        /// </remarks>
+        public void EnableProxyTypes()
+        {
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if (assembly.GetCustomAttribute<ProxyTypesAssemblyAttribute>() != null)
+                {
+                    EnableProxyTypes(assembly);
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Enables support for the early-bound entity types exposed in a specified assembly.
+        /// </summary>
+        /// <param name="assembly">The assembly to load the early-bound types from</param>
+        public void EnableProxyTypes(Assembly assembly)
+        {
+            if (_cbac != null)
+                _cbac.EnableProxyTypes(assembly);
+            else if (_service is ADAuthClient adac)
+                adac.EnableProxyTypes(assembly);
         }
 
         private IDisposable StartScope()

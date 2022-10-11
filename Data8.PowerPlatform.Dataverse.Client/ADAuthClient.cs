@@ -10,6 +10,7 @@ using NSspi.Contexts;
 #endif
 using System;
 using System.Net;
+using System.Reflection;
 using System.Runtime.Serialization;
 using System.ServiceModel.Channels;
 using System.Text;
@@ -27,6 +28,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         private readonly string _username;
         private readonly string _password;
         private readonly string _upn;
+        private readonly ProxySerializationSurrogate _serializationSurrogate;
         private DateTime _tokenExpires;
         private byte[] _proofToken;
         private SecurityContextToken _securityContextToken;
@@ -47,6 +49,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
             _url = url;
             _upn = upn;
+            _serializationSurrogate = new ProxySerializationSurrogate();
             Timeout = TimeSpan.FromSeconds(30);
 
             if (!String.IsNullOrEmpty(username))
@@ -203,6 +206,11 @@ namespace Data8.PowerPlatform.Dataverse.Client
             auth.Validate(_proofToken, finalResponse.Responses[1].Authenticator.Token);
         }
 
+        public void EnableProxyTypes(Assembly assembly)
+        {
+            _serializationSurrogate.LoadAssembly(assembly);
+        }
+
         /// <inheritdoc/>
         public void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
         {
@@ -243,7 +251,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         {
             Authenticate();
 
-            var message = Message.CreateMessage(MessageVersion.Soap12WSAddressing10, "http://schemas.microsoft.com/xrm/2011/Contracts/Services/IOrganizationService/Execute", new ExecuteRequestWriter(request));
+            var message = Message.CreateMessage(MessageVersion.Soap12WSAddressing10, "http://schemas.microsoft.com/xrm/2011/Contracts/Services/IOrganizationService/Execute", new ExecuteRequestWriter(request, _serializationSurrogate));
             message.Headers.MessageId = new UniqueId(Guid.NewGuid());
             message.Headers.ReplyTo = new System.ServiceModel.EndpointAddress("http://www.w3.org/2005/08/addressing/anonymous");
             message.Headers.To = new Uri(_url);
@@ -338,17 +346,25 @@ namespace Data8.PowerPlatform.Dataverse.Client
         private class ExecuteRequestWriter : BodyWriter
         {
             private readonly OrganizationRequest _request;
+            private readonly ProxySerializationSurrogate _serializationSurrogate;
 
-            public ExecuteRequestWriter(OrganizationRequest request) : base(isBuffered: true)
+            public ExecuteRequestWriter(OrganizationRequest request, ProxySerializationSurrogate serializationSurrogate) : base(isBuffered: true)
             {
                 _request = request;
+                _serializationSurrogate = serializationSurrogate;
             }
 
             protected override void OnWriteBodyContents(XmlDictionaryWriter writer)
             {
                 writer.WriteStartElement("Execute", Namespaces.Xrm2011Services);
 
+#if NETCOREAPP
                 var serializer = new DataContractSerializer(typeof(OrganizationRequest), "request", Namespaces.Xrm2011Services);
+                serializer.SetSerializationSurrogateProvider(_serializationSurrogate);
+#else
+                var serializer = new DataContractSerializer(typeof(OrganizationRequest), "request", Namespaces.Xrm2011Services, null, Int32.MaxValue, false, true, _serializationSurrogate);
+#endif
+
                 serializer.WriteObject(writer, _request, new KnownTypesResolver());
 
                 writer.WriteEndElement(); // Execute

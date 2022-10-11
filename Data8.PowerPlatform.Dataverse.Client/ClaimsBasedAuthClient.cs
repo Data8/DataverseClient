@@ -8,6 +8,9 @@ using System.ServiceModel;
 using System.ServiceModel.Channels;
 using System.ServiceModel.Federation;
 using Microsoft.Xrm.Sdk;
+using System.Reflection;
+using System.ServiceModel.Description;
+using Binding = System.ServiceModel.Channels.Binding;
 
 #if NET462_OR_GREATER
 using WSFederationHttpBinding = System.ServiceModel.Federation.WSFederationHttpBinding;
@@ -27,6 +30,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
     /// </summary>
     class ClaimsBasedAuthClient : ClientBase<IOrganizationService>
     {
+        private readonly ProxySerializationSurrogate _serializationSurrogate;
+
         /// <summary>
         /// A binding for WS-Trust that uses server entropy
         /// </summary>
@@ -50,8 +55,40 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// </summary>
         /// <param name="url">The URL of the organization service</param>
         /// <param name="issuerEndpoint">The URL of the STS endpoint</param>
-        public ClaimsBasedAuthClient(string url, string issuerEndpoint) : base(CreateFederatedBinding(issuerEndpoint), new EndpointAddress(url))
+        public ClaimsBasedAuthClient(string url, string issuerEndpoint) : base(CreateServiceEndpoint(url, issuerEndpoint))
         {
+            _serializationSurrogate = new ProxySerializationSurrogate();
+
+            foreach (var operation in Endpoint.Contract.Operations)
+            {
+                var operationBehavior = operation.Behaviors.Find<DataContractSerializerOperationBehavior>();
+#if NETCOREAPP
+                operationBehavior.SerializationSurrogateProvider = _serializationSurrogate;
+#else
+                operationBehavior.DataContractSurrogate = _serializationSurrogate;
+#endif
+            }
+        }
+
+        private static ServiceEndpoint CreateServiceEndpoint(string url, string issuerEndpoint)
+        {
+            var binding = CreateFederatedBinding(issuerEndpoint);
+            var endpointAddress = new EndpointAddress(url);
+
+            var serviceEndpoint = new ServiceEndpoint(ContractDescription.GetContract(typeof(IOrganizationService)), binding, endpointAddress);
+            
+            foreach (var operation in serviceEndpoint.Contract.Operations)
+            {
+                var operationBehavior = operation.Behaviors.Find<DataContractSerializerOperationBehavior>();
+                operationBehavior.MaxItemsInObjectGraph = Int32.MaxValue;
+            }
+
+            return serviceEndpoint;
+        }
+
+        public void EnableProxyTypes(Assembly assembly)
+        {
+            _serializationSurrogate.LoadAssembly(assembly);
         }
 
         private static Binding CreateFederatedBinding(string issuerEndpoint)
