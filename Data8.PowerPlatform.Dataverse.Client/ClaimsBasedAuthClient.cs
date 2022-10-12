@@ -83,7 +83,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
             var serviceInterfaceType = typeof(ClaimsBasedAuthClient).BaseType.GetGenericArguments()[0];
             var serviceEndpoint = new ServiceEndpoint(ContractDescription.GetContract(serviceInterfaceType), binding, endpointAddress);
-            
+
             foreach (var operation in serviceEndpoint.Contract.Operations)
             {
                 var operationBehavior = operation.Behaviors.Find<DataContractSerializerOperationBehavior>();
@@ -108,7 +108,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             var issuerBinding = new ServerEntropyWS2007HttpBinding(SecurityMode.TransportWithMessageCredential);
             issuerBinding.Security.Message.ClientCredentialType = MessageCredentialType.UserName;
             issuerBinding.Security.Message.EstablishSecurityContext = false;
-                
+
             // Next, create the token issuer's endpoint address
             var endpointAddress = new EndpointAddress(issuerEndpoint);
 

@@ -336,7 +336,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 _service.Update(entity);
             }
         }
-        
+
         /// <inheritdoc/>
         public Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities, CancellationToken cancellationToken)
         {
@@ -398,7 +398,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             cancellationToken.ThrowIfCancellationRequested();
             return UpdateAsync(entity);
         }
-        
+
         /// <inheritdoc/>
         public Task<Guid> CreateAsync(Entity entity)
         {

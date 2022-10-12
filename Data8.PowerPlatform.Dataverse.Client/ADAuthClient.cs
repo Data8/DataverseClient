@@ -228,7 +228,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// <inheritdoc/>
         public Guid Create(Entity entity)
         {
-            var resp = (CreateResponse) Execute(new CreateRequest { Target = entity });
+            var resp = (CreateResponse)Execute(new CreateRequest { Target = entity });
             return resp.id;
         }
 
@@ -268,7 +268,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             var req = WebRequest.CreateHttp(_url);
             req.Method = "POST";
             req.ContentType = "application/soap+xml; charset=utf-8";
-            req.Timeout = (int) Timeout.TotalMilliseconds;
+            req.Timeout = (int)Timeout.TotalMilliseconds;
 
             using (var reqStream = req.GetRequestStream())
             using (var xmlTextWriter = XmlWriter.Create(reqStream, new XmlWriterSettings
@@ -299,7 +299,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                         bodyReader.ReadStartElement("ExecuteResponse", Namespaces.Xrm2011Services);
 
                         var serializer = new DataContractSerializer(typeof(OrganizationResponse), "ExecuteResult", Namespaces.Xrm2011Services);
-                        var response = (OrganizationResponse) serializer.ReadObject(bodyReader, true, new KnownTypesResolver());
+                        var response = (OrganizationResponse)serializer.ReadObject(bodyReader, true, new KnownTypesResolver());
 
                         bodyReader.ReadEndElement(); // ExecuteRepsonse
 
@@ -329,7 +329,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// <inheritdoc/>
         public Entity Retrieve(string entityName, Guid id, ColumnSet columnSet)
         {
-            var resp = (RetrieveResponse) Execute(new RetrieveRequest { Target = new EntityReference(entityName, id), ColumnSet = columnSet });
+            var resp = (RetrieveResponse)Execute(new RetrieveRequest { Target = new EntityReference(entityName, id), ColumnSet = columnSet });
             return resp.Entity;
         }
 
