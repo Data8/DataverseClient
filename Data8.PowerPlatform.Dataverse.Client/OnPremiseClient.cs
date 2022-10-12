@@ -7,6 +7,10 @@ using System.Reflection;
 using System.ServiceModel;
 using System.ServiceModel.Channels;
 using System.ServiceModel.Description;
+using System.Threading;
+using System.Threading.Tasks;
+using Data8.PowerPlatform.Dataverse.Client.Wsdl;
+using Microsoft.PowerPlatform.Dataverse.Client;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Client;
 using Microsoft.Xrm.Sdk.Query;
@@ -19,7 +23,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
     /// <remarks>
     /// Claims-based authentication, IFD and Active Directory authentication are all supported.
     /// </remarks>
-    public class OnPremiseClient : IOrganizationService
+    public class OnPremiseClient : IOrganizationServiceAsync2
     {
         /// <summary>
         /// Adds headers into the SOAP requests
@@ -30,9 +34,12 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
             public OrgServiceScope(IOrganizationService svc, Guid callerId)
             {
+                if (svc is OrgServiceAsyncWrapper async)
+                    svc = async.InnerService;
+
                 if (svc is IContextChannel channel)
                 {
-                    _scope = new OperationContextScope((IContextChannel)svc);
+                    _scope = new OperationContextScope(channel);
 
                     OperationContext.Current.OutgoingMessageHeaders.Add(MessageHeader.CreateHeader("SdkClientVersion", Wsdl.Namespaces.tns, _sdkVersion));
                     OperationContext.Current.OutgoingMessageHeaders.Add(MessageHeader.CreateHeader("UserType", Wsdl.Namespaces.tns, "CrmUser"));
@@ -54,7 +61,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         private readonly ClaimsBasedAuthClient _cbac;
-        private readonly IOrganizationService _service;
+        private readonly IOrganizationServiceAsync _service;
 
         private static readonly string _sdkVersion;
         private static readonly int _sdkMajorVersion;
@@ -119,6 +126,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
             if (authenticationPolicy == null)
                 throw new InvalidOperationException("Unable to find authentication policy");
 
+            IOrganizationService svc;
+
             switch (authenticationPolicy.Authentication)
             {
                 case Wsdl.AuthenticationType.ActiveDirectory:
@@ -132,22 +141,27 @@ namespace Data8.PowerPlatform.Dataverse.Client
                         .EndpointReference
                         .Identity;
 
-                    _service = ConnectAD(url, credentials, identity?.Upn ?? identity?.Spn);
+                    svc = ConnectAD(url, credentials, identity?.Upn ?? identity?.Spn);
                     break;
 
                 case Wsdl.AuthenticationType.Federation:
                     _cbac = ConnectFederated(url, credentials, policies);
-                    _service = _cbac.ChannelFactory.CreateChannel();
+                    svc = _cbac.ChannelFactory.CreateChannel();
                     break;
 
                 default:
                     throw new NotSupportedException("Unknown authentication policy " + authenticationPolicy.Authentication);
             }
 
+            if (svc is IOrganizationServiceAsync async)
+                _service = async;
+            else
+                _service = new OrgServiceAsyncWrapper(svc);
+
             Timeout = TimeSpan.FromMinutes(2);
         }
 
-        private ClaimsBasedAuthClient ConnectFederated(string url, ClientCredentials credentials, List<Wsdl.Policy> policies)
+        private ClaimsBasedAuthClient ConnectFederated(string url, ClientCredentials credentials, List<Policy> policies)
         {
             var tokenEndpoint = policies
                 .Select(p => p.FindPolicyItem<Wsdl.EndorsingSupportingTokens>())
@@ -158,14 +172,14 @@ namespace Data8.PowerPlatform.Dataverse.Client
             var issuerMetadataEndpoint = issuer.Issuer.Metadata.Metadata.MetadataSection.MetadataReference.Address;
 
             // Now get the WSDL of the STS to get the username and password endpoint
-            var issuerWsdls = Wsdl.WsdlLoader.Load(issuerMetadataEndpoint).ToList();
+            var issuerWsdls = WsdlLoader.Load(issuerMetadataEndpoint).ToList();
             var issuerPolicies = issuerWsdls
                 .Where(wsdl => wsdl.Policies != null)
                 .SelectMany(wsdl => wsdl.Policies)
                 .ToList();
 
             var usernameWsTrust13Policy = issuerPolicies
-                .Where(p => p.FindPolicyItem<Wsdl.SignedEncryptedSupportingTokens>()?.Policy.FindPolicyItem<Wsdl.UsernameToken>() != null && p.FindPolicyItem<Wsdl.Trust13>() != null)
+                .Where(p => p.FindPolicyItem<SignedEncryptedSupportingTokens>()?.Policy.FindPolicyItem<UsernameToken>() != null && p.FindPolicyItem<Trust13>() != null)
                 .FirstOrDefault();
 
             var issuerBindings = issuerWsdls
@@ -194,38 +208,25 @@ namespace Data8.PowerPlatform.Dataverse.Client
             return client;
         }
 
-        private IOrganizationService ConnectAD(string url, ClientCredentials credentials, string identity)
+        private IOrganizationServiceAsync ConnectAD(string url, ClientCredentials credentials, string identity)
         {
             var client = new ADAuthClient(url, credentials.UserName.UserName, credentials.UserName.Password, identity);
             return client;
         }
 
-        /// <summary>
-        /// Returns or sets the ID of the user that should be impersonated
-        /// </summary>
-        /// <remarks>
-        /// Use <see cref="Guid.Empty"/> to disable impersonation
-        /// </remarks>
+        /// <inheritdoc cref="ServiceClient.CallerId"/>
         public Guid CallerId { get; set; }
 
-        /// <summary>
-        /// Sets the timeout for each operation
-        /// </summary>
+        /// <inheritdoc cref="ServiceClient.MaxConnectionTimeout"/>
         public TimeSpan Timeout
         {
             get
             {
-                if (_service is IContextChannel channel)
-                    return channel.OperationTimeout;
-                else
-                    return ((ADAuthClient)_service).Timeout;
+                return _service.GetTimeout();
             }
             set
             {
-                if (_service is IContextChannel channel)
-                    channel.OperationTimeout = value;
-                else
-                    ((ADAuthClient)_service).Timeout = value;
+                _service.SetTimeout(value);
             }
         }
 
@@ -333,6 +334,140 @@ namespace Data8.PowerPlatform.Dataverse.Client
             using (StartScope())
             {
                 _service.Update(entity);
+            }
+        }
+        
+        /// <inheritdoc/>
+        public Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return AssociateAsync(entityName, entityId, relationship, relatedEntities);
+        }
+
+        /// <inheritdoc/>
+        public Task<Guid> CreateAsync(Entity entity, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return CreateAsync(entity);
+        }
+
+        /// <inheritdoc/>
+        public Task<Entity> CreateAndReturnAsync(Entity entity, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc/>
+        public Task DeleteAsync(string entityName, Guid id, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return DeleteAsync(entityName, id);
+        }
+
+        /// <inheritdoc/>
+        public Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return DisassociateAsync(entityName, entityId, relationship, relatedEntities);
+        }
+
+        /// <inheritdoc/>
+        public Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ExecuteAsync(request);
+        }
+
+        /// <inheritdoc/>
+        public Task<Entity> RetrieveAsync(string entityName, Guid id, ColumnSet columnSet, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return RetrieveAsync(entityName, id, columnSet);
+        }
+
+        /// <inheritdoc/>
+        public Task<EntityCollection> RetrieveMultipleAsync(QueryBase query, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return RetrieveMultipleAsync(query);
+        }
+
+        /// <inheritdoc/>
+        public Task UpdateAsync(Entity entity, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return UpdateAsync(entity);
+        }
+        
+        /// <inheritdoc/>
+        public Task<Guid> CreateAsync(Entity entity)
+        {
+            using (StartScope())
+            {
+                return _service.CreateAsync(entity);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task<Entity> RetrieveAsync(string entityName, Guid id, ColumnSet columnSet)
+        {
+            using (StartScope())
+            {
+                return _service.RetrieveAsync(entityName, id, columnSet);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task UpdateAsync(Entity entity)
+        {
+            using (StartScope())
+            {
+                return _service.UpdateAsync(entity);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task DeleteAsync(string entityName, Guid id)
+        {
+            using (StartScope())
+            {
+                return _service.DeleteAsync(entityName, id);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request)
+        {
+            using (StartScope())
+            {
+                return _service.ExecuteAsync(request);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            using (StartScope())
+            {
+                return _service.AssociateAsync(entityName, entityId, relationship, relatedEntities);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            using (StartScope())
+            {
+                return _service.DisassociateAsync(entityName, entityId, relationship, relatedEntities);
+            }
+        }
+
+        /// <inheritdoc/>
+        public Task<EntityCollection> RetrieveMultipleAsync(QueryBase query)
+        {
+            using (StartScope())
+            {
+                return _service.RetrieveMultipleAsync(query);
             }
         }
     }

@@ -81,9 +81,9 @@ void CreateRecord(IOrganizationService svc)
 
   <ItemGroup>
     <PackageReference Include="Microsoft.IdentityModel.Protocols.WsTrust" Version="6.8.0" />
-    <PackageReference Include="Microsoft.PowerPlatform.Dataverse.Client" Version="0.6.1" />
-	<PackageReference Include="System.ServiceModel.Security" Version="4.9.0" Aliases="SSS" />
-    <PackageReference Include="System.ServiceModel.Federation" Version="4.9.0" />
+    <PackageReference Include="Microsoft.PowerPlatform.Dataverse.Client" Version="1.0.23" />
+	<PackageReference Include="System.ServiceModel.Security" Version="4.10.0" Aliases="SSS" />
+    <PackageReference Include="System.ServiceModel.Federation" Version="4.10.0" />
   </ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'net472' or '$(TargetFramework)' == 'net48'">

@@ -5,12 +5,12 @@ extern alias SSS;
 
 using System;
 using System.ServiceModel;
-using System.ServiceModel.Channels;
 using System.ServiceModel.Federation;
-using Microsoft.Xrm.Sdk;
 using System.Reflection;
 using System.ServiceModel.Description;
 using Binding = System.ServiceModel.Channels.Binding;
+using Microsoft.PowerPlatform.Dataverse.Client;
+using Microsoft.Xrm.Sdk;
 
 #if NET462_OR_GREATER
 using WSFederationHttpBinding = System.ServiceModel.Federation.WSFederationHttpBinding;
@@ -28,7 +28,13 @@ namespace Data8.PowerPlatform.Dataverse.Client
     /// <summary>
     /// Inner client to set up the SOAP channel using WS-Trust
     /// </summary>
-    class ClaimsBasedAuthClient : ClientBase<IOrganizationService>
+    class ClaimsBasedAuthClient : ClientBase<
+#if NETCOREAPP
+        IOrganizationServiceAsync
+#else
+        IOrganizationService
+#endif
+        >
     {
         private readonly ProxySerializationSurrogate _serializationSurrogate;
 
@@ -75,7 +81,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
             var binding = CreateFederatedBinding(issuerEndpoint);
             var endpointAddress = new EndpointAddress(url);
 
-            var serviceEndpoint = new ServiceEndpoint(ContractDescription.GetContract(typeof(IOrganizationService)), binding, endpointAddress);
+            var serviceInterfaceType = typeof(ClaimsBasedAuthClient).BaseType.GetGenericArguments()[0];
+            var serviceEndpoint = new ServiceEndpoint(ContractDescription.GetContract(serviceInterfaceType), binding, endpointAddress);
             
             foreach (var operation in serviceEndpoint.Contract.Operations)
             {
