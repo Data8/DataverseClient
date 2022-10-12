@@ -154,7 +154,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                     Results = resp.Results
                 };
             }
-            else if (targetType == typeof(Entity) && obj is Entity entity)
+            else if (obj is Entity entity && obj.GetType() != typeof(Entity))
             {
                 return entity.ToEntity<Entity>();
             }
