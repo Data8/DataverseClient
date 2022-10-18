@@ -85,6 +85,18 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <summary>
+        /// Creates a new <see cref="OnPremiseClient"/> using default credentials
+        /// </summary>
+        /// <param name="url">The URL of the organization service to connect to</param>
+        /// <remarks>
+        /// The <paramref name="url"/> must include the full path to the organization service, e.g. https://org.crm.contoso.com/XRMServices/2011/Organization.svc
+        /// </remarks>
+        public OnPremiseClient(string url)
+            : this(url, new ClientCredentials())
+        {
+        }
+
+        /// <summary>
         /// Creates a new <see cref="OnPremiseClient"/>
         /// </summary>
         /// <param name="url">The URL of the organization service to connect to</param>
@@ -262,7 +274,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        public virtual void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
         {
             using (StartScope())
             {
@@ -271,7 +283,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public Guid Create(Entity entity)
+        public virtual Guid Create(Entity entity)
         {
             using (StartScope())
             {
@@ -280,7 +292,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public void Delete(string entityName, Guid id)
+        public virtual void Delete(string entityName, Guid id)
         {
             using (StartScope())
             {
@@ -289,7 +301,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public void Disassociate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        public virtual void Disassociate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
         {
             using (StartScope())
             {
@@ -298,7 +310,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public OrganizationResponse Execute(OrganizationRequest request)
+        public virtual OrganizationResponse Execute(OrganizationRequest request)
         {
             using (StartScope())
             {
@@ -307,7 +319,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public Entity Retrieve(string entityName, Guid id, ColumnSet columnSet)
+        public virtual Entity Retrieve(string entityName, Guid id, ColumnSet columnSet)
         {
             using (StartScope())
             {
@@ -316,7 +328,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public EntityCollection RetrieveMultiple(QueryBase query)
+        public virtual EntityCollection RetrieveMultiple(QueryBase query)
         {
             using (StartScope())
             {
@@ -325,7 +337,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public void Update(Entity entity)
+        public virtual void Update(Entity entity)
         {
             using (StartScope())
             {
