@@ -298,7 +298,12 @@ namespace Data8.PowerPlatform.Dataverse.Client
                     {
                         bodyReader.ReadStartElement("ExecuteResponse", Namespaces.Xrm2011Services);
 
+#if NETCOREAPP
                         var serializer = new DataContractSerializer(typeof(OrganizationResponse), "ExecuteResult", Namespaces.Xrm2011Services);
+                        serializer.SetSerializationSurrogateProvider(_serializationSurrogate);
+#else
+                        var serializer = new DataContractSerializer(typeof(OrganizationResponse), "ExecuteResult", Namespaces.Xrm2011Services, null, Int32.MaxValue, false, true, _serializationSurrogate);
+#endif
                         var response = (OrganizationResponse)serializer.ReadObject(bodyReader, true, new KnownTypesResolver());
 
                         bodyReader.ReadEndElement(); // ExecuteRepsonse
@@ -438,7 +443,12 @@ namespace Data8.PowerPlatform.Dataverse.Client
                     {
                         bodyReader.ReadStartElement("ExecuteResponse", Namespaces.Xrm2011Services);
 
+#if NETCOREAPP
                         var serializer = new DataContractSerializer(typeof(OrganizationResponse), "ExecuteResult", Namespaces.Xrm2011Services);
+                        serializer.SetSerializationSurrogateProvider(_serializationSurrogate);
+#else
+                        var serializer = new DataContractSerializer(typeof(OrganizationResponse), "ExecuteResult", Namespaces.Xrm2011Services, null, Int32.MaxValue, false, true, _serializationSurrogate);
+#endif
                         var response = (OrganizationResponse)serializer.ReadObject(bodyReader, true, new KnownTypesResolver());
 
                         bodyReader.ReadEndElement(); // ExecuteRepsonse
