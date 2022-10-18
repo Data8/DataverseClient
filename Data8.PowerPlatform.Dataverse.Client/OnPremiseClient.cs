@@ -60,7 +60,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             }
         }
 
-        private readonly ClaimsBasedAuthClient _cbac;
+        private readonly IInnerOrganizationService _innerService;
         private readonly IOrganizationServiceAsync _service;
 
         private static readonly string _sdkVersion;
@@ -126,7 +126,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             if (authenticationPolicy == null)
                 throw new InvalidOperationException("Unable to find authentication policy");
 
-            IOrganizationService svc;
+            IInnerOrganizationService svc;
 
             switch (authenticationPolicy.Authentication)
             {
@@ -145,8 +145,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                     break;
 
                 case Wsdl.AuthenticationType.Federation:
-                    _cbac = ConnectFederated(url, credentials, policies);
-                    svc = _cbac.ChannelFactory.CreateChannel();
+                    svc = ConnectFederated(url, credentials, policies);
                     break;
 
                 default:
@@ -208,7 +207,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             return client;
         }
 
-        private IOrganizationServiceAsync ConnectAD(string url, ClientCredentials credentials, string identity)
+        private ADAuthClient ConnectAD(string url, ClientCredentials credentials, string identity)
         {
             var client = new ADAuthClient(url, credentials.UserName.UserName, credentials.UserName.Password, identity);
             return client;
@@ -222,11 +221,11 @@ namespace Data8.PowerPlatform.Dataverse.Client
         {
             get
             {
-                return _service.GetTimeout();
+                return _innerService.Timeout;
             }
             set
             {
-                _service.SetTimeout(value);
+                _innerService.Timeout = value;
             }
         }
 
@@ -254,10 +253,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// <param name="assembly">The assembly to load the early-bound types from</param>
         public void EnableProxyTypes(Assembly assembly)
         {
-            if (_cbac != null)
-                _cbac.EnableProxyTypes(assembly);
-            else if (_service is ADAuthClient adac)
-                adac.EnableProxyTypes(assembly);
+            _innerService.EnableProxyTypes(assembly);
         }
 
         private IDisposable StartScope()

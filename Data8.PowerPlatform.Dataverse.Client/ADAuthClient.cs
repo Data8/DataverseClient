@@ -24,7 +24,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
     /// <summary>
     /// Inner client to set up the SOAP channel using WS-Trust with SSPI auth
     /// </summary>
-    class ADAuthClient : IOrganizationServiceAsync2
+    class ADAuthClient : IOrganizationServiceAsync2, IInnerOrganizationService
     {
         private readonly string _url;
         private readonly string _domain;

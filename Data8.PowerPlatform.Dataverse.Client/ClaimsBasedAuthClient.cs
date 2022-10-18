@@ -11,6 +11,8 @@ using System.ServiceModel.Description;
 using Binding = System.ServiceModel.Channels.Binding;
 using Microsoft.PowerPlatform.Dataverse.Client;
 using Microsoft.Xrm.Sdk;
+using System.Threading.Tasks;
+using Microsoft.Xrm.Sdk.Query;
 
 #if NET462_OR_GREATER
 using WSFederationHttpBinding = System.ServiceModel.Federation.WSFederationHttpBinding;
@@ -28,13 +30,11 @@ namespace Data8.PowerPlatform.Dataverse.Client
     /// <summary>
     /// Inner client to set up the SOAP channel using WS-Trust
     /// </summary>
-    class ClaimsBasedAuthClient : ClientBase<
 #if NETCOREAPP
-        IOrganizationServiceAsync
+    class ClaimsBasedAuthClient : ClientBase<IOrganizationServiceAsync>, IOrganizationServiceAsync, IInnerOrganizationService
 #else
-        IOrganizationService
+    class ClaimsBasedAuthClient : ClientBase<IOrganizationService>, IOrganizationService, IInnerOrganizationService
 #endif
-        >
     {
         private readonly ProxySerializationSurrogate _serializationSurrogate;
 
@@ -93,6 +93,12 @@ namespace Data8.PowerPlatform.Dataverse.Client
             return serviceEndpoint;
         }
 
+        public TimeSpan Timeout
+        {
+            get { return InnerChannel.OperationTimeout; }
+            set { InnerChannel.OperationTimeout = value; }
+        }
+
         public void EnableProxyTypes(Assembly assembly)
         {
             _serializationSurrogate.LoadAssembly(assembly);
@@ -130,6 +136,88 @@ namespace Data8.PowerPlatform.Dataverse.Client
             binding.ReaderQuotas.MaxNameTableCharCount = Int32.MaxValue;
 
             return binding;
+        }
+
+#if NETCOREAPP
+        public Task<Guid> CreateAsync(Entity entity)
+        {
+            return Channel.CreateAsync(entity);
+        }
+
+        public Task<Entity> RetrieveAsync(string entityName, Guid id, ColumnSet columnSet)
+        {
+            return Channel.RetrieveAsync(entityName, id, columnSet);
+        }
+
+        public Task UpdateAsync(Entity entity)
+        {
+            return Channel.UpdateAsync(entity);
+        }
+
+        public Task DeleteAsync(string entityName, Guid id)
+        {
+            return Channel.DeleteAsync(entityName, id);
+        }
+
+        public Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request)
+        {
+            return Channel.ExecuteAsync(request);
+        }
+
+        public Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            return Channel.AssociateAsync(entityName, entityId, relationship, relatedEntities);
+        }
+
+        public Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            return Channel.DisassociateAsync(entityName, entityId, relationship, relatedEntities);
+        }
+
+        public Task<EntityCollection> RetrieveMultipleAsync(QueryBase query)
+        {
+            return Channel.RetrieveMultipleAsync(query);
+        }
+#endif
+
+        public Guid Create(Entity entity)
+        {
+            return Channel.Create(entity);
+        }
+
+        public Entity Retrieve(string entityName, Guid id, ColumnSet columnSet)
+        {
+            return Channel.Retrieve(entityName, id, columnSet);
+        }
+
+        public void Update(Entity entity)
+        {
+            Channel.Update(entity);
+        }
+
+        public void Delete(string entityName, Guid id)
+        {
+            Channel.Delete(entityName, id);
+        }
+
+        public OrganizationResponse Execute(OrganizationRequest request)
+        {
+            return Channel.Execute(request);
+        }
+
+        public void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            Channel.Associate(entityName, entityId, relationship, relatedEntities);
+        }
+
+        public void Disassociate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            Channel.Disassociate(entityName, entityId, relationship, relatedEntities);
+        }
+
+        public EntityCollection RetrieveMultiple(QueryBase query)
+        {
+            return Channel.RetrieveMultiple(query);
         }
     }
 }
