@@ -60,6 +60,39 @@ Authentication. This library can authenticate to these instances, but only where
 You can choose to supply a username (in the format `DOMAIN\Username` or `username@domain`) and password, or leave
 both blank to authenticate as the currently logged on user.
 
+## Early bound support
+
+This library supports both late-bound and early-bound code. To use early-bound classes, create them using
+[CrmSvcUtil](https://learn.microsoft.com/en-us/power-apps/developer/data-platform/org-service/generate-early-bound-classes)
+or the [Early Bound Generator](https://www.xrmtoolbox.com/plugins/DLaB.Xrm.EarlyBoundGenerator/) tool in XrmToolBox
+as normal. You'll then need to enable them using the `EnableProxyTypes` method in the same way as the CrmServiceClient uses.
+After they are enabled you can pass your early bound instances and get strongly types responses from all the normal
+`IOrganizationService` methods, or use the generated OrganizationServiceContext to interact with the service:
+
+```csharp
+var client = new OnPremiseClient(url, username, password);
+client.EnableProxyTypes();
+
+// Using IOrganizationService
+var contact = new Contact { FirstName = "Early Bound", LastName = "Context" };
+contact.Id = client.Create(contact);
+
+// Using OrganizationServiceContext
+var context = new CrmServiceContext(client);
+var newContacts = context.ContactSet
+    .Where(c => c.CreatedOn > DateTime.Today)
+    .Select(c => new { c.FirstName, c.LastName })
+    .ToList();
+```
+
+## Async support
+
+As well as the standard `IOrganizationService` interface, this library also supports both the `IOrganizationServiceAsync`
+and `IOrganizationServiceAsync2` interfaces to allow you to use async programming styles when accessing Dynamics 365 data.
+
+The `IOrganizationServiceAsync2` interface supports cancellation. Similar to the Microsoft library, cancellation can only
+be performed up to the point the request is sent to the server. Requests cannot be cancelled once they are sent.
+
 ## Thanks
 
 Many thanks to [Data8](https://www.data-8.co.uk/) for the time to develop this library and release it for public use.
