@@ -32,14 +32,11 @@ namespace Data8.PowerPlatform.Dataverse.Client
         {
             private readonly OperationContextScope _scope;
 
-            public OrgServiceScope(IOrganizationService svc, Guid callerId)
+            public OrgServiceScope(IInnerOrganizationService svc, Guid callerId)
             {
-                if (svc is OrgServiceAsyncWrapper async)
-                    svc = async.InnerService;
-
-                if (svc is IContextChannel channel)
+                if (svc is ClaimsBasedAuthClient cbac)
                 {
-                    _scope = new OperationContextScope(channel);
+                    _scope = new OperationContextScope(cbac.InnerChannel);
 
                     OperationContext.Current.OutgoingMessageHeaders.Add(MessageHeader.CreateHeader("SdkClientVersion", Wsdl.Namespaces.tns, _sdkVersion));
                     OperationContext.Current.OutgoingMessageHeaders.Add(MessageHeader.CreateHeader("UserType", Wsdl.Namespaces.tns, "CrmUser"));
@@ -138,8 +135,6 @@ namespace Data8.PowerPlatform.Dataverse.Client
             if (authenticationPolicy == null)
                 throw new InvalidOperationException("Unable to find authentication policy");
 
-            IInnerOrganizationService svc;
-
             switch (authenticationPolicy.Authentication)
             {
                 case Wsdl.AuthenticationType.ActiveDirectory:
@@ -153,21 +148,21 @@ namespace Data8.PowerPlatform.Dataverse.Client
                         .EndpointReference
                         .Identity;
 
-                    svc = ConnectAD(url, credentials, identity?.Upn ?? identity?.Spn);
+                    _innerService = ConnectAD(url, credentials, identity?.Upn ?? identity?.Spn);
                     break;
 
                 case Wsdl.AuthenticationType.Federation:
-                    svc = ConnectFederated(url, credentials, policies);
+                    _innerService = ConnectFederated(url, credentials, policies);
                     break;
 
                 default:
                     throw new NotSupportedException("Unknown authentication policy " + authenticationPolicy.Authentication);
             }
 
-            if (svc is IOrganizationServiceAsync async)
+            if (_innerService is IOrganizationServiceAsync async)
                 _service = async;
             else
-                _service = new OrgServiceAsyncWrapper(svc);
+                _service = new OrgServiceAsyncWrapper(_innerService);
 
             Timeout = TimeSpan.FromMinutes(2);
         }
@@ -270,7 +265,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
         private IDisposable StartScope()
         {
-            return new OrgServiceScope(_service, CallerId);
+            return new OrgServiceScope(_innerService, CallerId);
         }
 
         /// <inheritdoc/>

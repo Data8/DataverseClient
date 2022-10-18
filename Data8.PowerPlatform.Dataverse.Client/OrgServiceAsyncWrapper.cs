@@ -15,14 +15,6 @@ namespace Data8.PowerPlatform.Dataverse.Client
             _service = service;
         }
 
-        public IOrganizationService InnerService => _service;
-
-        public TimeSpan Timeout
-        {
-            get => _service.GetTimeout();
-            set => _service.SetTimeout(value);
-        }
-
         public void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
         {
             _service.Associate(entityName, entityId, relationship, relatedEntities);
