@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Xml;
 using System.ServiceModel.Channels;
-using System.Text;
 using System.Xml;
 
 namespace Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers

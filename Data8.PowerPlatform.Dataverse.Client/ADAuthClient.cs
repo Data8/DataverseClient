@@ -1,4 +1,5 @@
 ﻿using Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers;
+using Microsoft.PowerPlatform.Dataverse.Client;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Query;
@@ -10,9 +11,12 @@ using NSspi.Contexts;
 #endif
 using System;
 using System.Net;
+using System.Reflection;
 using System.Runtime.Serialization;
 using System.ServiceModel.Channels;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 
 namespace Data8.PowerPlatform.Dataverse.Client
@@ -20,13 +24,14 @@ namespace Data8.PowerPlatform.Dataverse.Client
     /// <summary>
     /// Inner client to set up the SOAP channel using WS-Trust with SSPI auth
     /// </summary>
-    class ADAuthClient : IOrganizationService
+    class ADAuthClient : IOrganizationServiceAsync2, IInnerOrganizationService
     {
         private readonly string _url;
         private readonly string _domain;
         private readonly string _username;
         private readonly string _password;
         private readonly string _upn;
+        private readonly ProxySerializationSurrogate _serializationSurrogate;
         private DateTime _tokenExpires;
         private byte[] _proofToken;
         private SecurityContextToken _securityContextToken;
@@ -41,12 +46,13 @@ namespace Data8.PowerPlatform.Dataverse.Client
         public ADAuthClient(string url, string username, string password, string upn)
         {
 #if !NET7_0_OR_GREATER
-            if (Environment.OSVersion.Platform == System.PlatformID.Unix)
+            if (Environment.OSVersion.Platform == PlatformID.Unix)
                 throw new PlatformNotSupportedException("Windows authentication is only available on Windows clients or when using .NET 7");
 #endif
 
             _url = url;
             _upn = upn;
+            _serializationSurrogate = new ProxySerializationSurrogate();
             Timeout = TimeSpan.FromSeconds(30);
 
             if (!String.IsNullOrEmpty(username))
@@ -203,6 +209,11 @@ namespace Data8.PowerPlatform.Dataverse.Client
             auth.Validate(_proofToken, finalResponse.Responses[1].Authenticator.Token);
         }
 
+        public void EnableProxyTypes(Assembly assembly)
+        {
+            _serializationSurrogate.LoadAssembly(assembly);
+        }
+
         /// <inheritdoc/>
         public void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
         {
@@ -217,7 +228,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// <inheritdoc/>
         public Guid Create(Entity entity)
         {
-            var resp = (CreateResponse) Execute(new CreateRequest { Target = entity });
+            var resp = (CreateResponse)Execute(new CreateRequest { Target = entity });
             return resp.id;
         }
 
@@ -243,7 +254,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         {
             Authenticate();
 
-            var message = Message.CreateMessage(MessageVersion.Soap12WSAddressing10, "http://schemas.microsoft.com/xrm/2011/Contracts/Services/IOrganizationService/Execute", new ExecuteRequestWriter(request));
+            var message = Message.CreateMessage(MessageVersion.Soap12WSAddressing10, "http://schemas.microsoft.com/xrm/2011/Contracts/Services/IOrganizationService/Execute", new ExecuteRequestWriter(request, _serializationSurrogate));
             message.Headers.MessageId = new UniqueId(Guid.NewGuid());
             message.Headers.ReplyTo = new System.ServiceModel.EndpointAddress("http://www.w3.org/2005/08/addressing/anonymous");
             message.Headers.To = new Uri(_url);
@@ -257,7 +268,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             var req = WebRequest.CreateHttp(_url);
             req.Method = "POST";
             req.ContentType = "application/soap+xml; charset=utf-8";
-            req.Timeout = (int) Timeout.TotalMilliseconds;
+            req.Timeout = (int)Timeout.TotalMilliseconds;
 
             using (var reqStream = req.GetRequestStream())
             using (var xmlTextWriter = XmlWriter.Create(reqStream, new XmlWriterSettings
@@ -287,8 +298,13 @@ namespace Data8.PowerPlatform.Dataverse.Client
                     {
                         bodyReader.ReadStartElement("ExecuteResponse", Namespaces.Xrm2011Services);
 
+#if NETCOREAPP
                         var serializer = new DataContractSerializer(typeof(OrganizationResponse), "ExecuteResult", Namespaces.Xrm2011Services);
-                        var response = (OrganizationResponse) serializer.ReadObject(bodyReader, true, new KnownTypesResolver());
+                        serializer.SetSerializationSurrogateProvider(_serializationSurrogate);
+#else
+                        var serializer = new DataContractSerializer(typeof(OrganizationResponse), "ExecuteResult", Namespaces.Xrm2011Services, null, Int32.MaxValue, false, true, _serializationSurrogate);
+#endif
+                        var response = (OrganizationResponse)serializer.ReadObject(bodyReader, true, new KnownTypesResolver());
 
                         bodyReader.ReadEndElement(); // ExecuteRepsonse
 
@@ -318,7 +334,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// <inheritdoc/>
         public Entity Retrieve(string entityName, Guid id, ColumnSet columnSet)
         {
-            var resp = (RetrieveResponse) Execute(new RetrieveRequest { Target = new EntityReference(entityName, id), ColumnSet = columnSet });
+            var resp = (RetrieveResponse)Execute(new RetrieveRequest { Target = new EntityReference(entityName, id), ColumnSet = columnSet });
             return resp.Entity;
         }
 
@@ -335,20 +351,221 @@ namespace Data8.PowerPlatform.Dataverse.Client
             Execute(new UpdateRequest { Target = entity });
         }
 
+        /// <inheritdoc/>
+        public Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities, CancellationToken cancellationToken)
+        {
+            return ExecuteAsync(new AssociateRequest
+            {
+                Target = new EntityReference(entityName, entityId),
+                Relationship = relationship,
+                RelatedEntities = relatedEntities
+            }, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async Task<Guid> CreateAsync(Entity entity, CancellationToken cancellationToken)
+        {
+            var resp = (CreateResponse)await ExecuteAsync(new CreateRequest { Target = entity }, cancellationToken).ConfigureAwait(false);
+            return resp.id;
+        }
+
+        /// <inheritdoc/>
+        public Task<Entity> CreateAndReturnAsync(Entity entity, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc/>
+        public Task DeleteAsync(string entityName, Guid id, CancellationToken cancellationToken)
+        {
+            return ExecuteAsync(new DeleteRequest { Target = new EntityReference(entityName, id) }, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities, CancellationToken cancellationToken)
+        {
+            return ExecuteAsync(new DisassociateRequest
+            {
+                Target = new EntityReference(entityName, entityId),
+                Relationship = relationship,
+                RelatedEntities = relatedEntities
+            }, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request, CancellationToken cancellationToken)
+        {
+            Authenticate();
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var message = Message.CreateMessage(MessageVersion.Soap12WSAddressing10, "http://schemas.microsoft.com/xrm/2011/Contracts/Services/IOrganizationService/Execute", new ExecuteRequestWriter(request, _serializationSurrogate));
+            message.Headers.MessageId = new UniqueId(Guid.NewGuid());
+            message.Headers.ReplyTo = new System.ServiceModel.EndpointAddress("http://www.w3.org/2005/08/addressing/anonymous");
+            message.Headers.To = new Uri(_url);
+            message.Headers.Add(MessageHeader.CreateHeader("SdkClientVersion", Namespaces.Xrm2011Contracts, SdkClientVersion));
+            message.Headers.Add(MessageHeader.CreateHeader("UserType", Namespaces.Xrm2011Contracts, "CrmUser"));
+            message.Headers.Add(new SecurityHeader(_securityContextToken, _proofToken));
+
+            if (CallerId != Guid.Empty)
+                message.Headers.Add(MessageHeader.CreateHeader("CallerId", Namespaces.Xrm2011Contracts, CallerId));
+
+            var req = WebRequest.CreateHttp(_url);
+            req.Method = "POST";
+            req.ContentType = "application/soap+xml; charset=utf-8";
+            req.Timeout = (int)Timeout.TotalMilliseconds;
+
+            using (var reqStream = await req.GetRequestStreamAsync().ConfigureAwait(false))
+            using (var xmlTextWriter = XmlWriter.Create(reqStream, new XmlWriterSettings
+            {
+                OmitXmlDeclaration = true,
+                Indent = false,
+                Encoding = new UTF8Encoding(false),
+                CloseOutput = true
+            }))
+            using (var xmlWriter = XmlDictionaryWriter.CreateDictionaryWriter(xmlTextWriter))
+            {
+                message.WriteMessage(xmlWriter);
+                xmlWriter.WriteEndDocument();
+                xmlWriter.Flush();
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                using (var resp = await req.GetResponseAsync().ConfigureAwait(false))
+                using (var respStream = resp.GetResponseStream())
+                {
+                    var reader = XmlReader.Create(respStream, new XmlReaderSettings());
+                    var responseMessage = Message.CreateMessage(reader, 0x10000, MessageVersion.Soap12WSAddressing10);
+                    var action = responseMessage.Headers.Action;
+
+                    using (var bodyReader = responseMessage.GetReaderAtBodyContents())
+                    {
+                        bodyReader.ReadStartElement("ExecuteResponse", Namespaces.Xrm2011Services);
+
+#if NETCOREAPP
+                        var serializer = new DataContractSerializer(typeof(OrganizationResponse), "ExecuteResult", Namespaces.Xrm2011Services);
+                        serializer.SetSerializationSurrogateProvider(_serializationSurrogate);
+#else
+                        var serializer = new DataContractSerializer(typeof(OrganizationResponse), "ExecuteResult", Namespaces.Xrm2011Services, null, Int32.MaxValue, false, true, _serializationSurrogate);
+#endif
+                        var response = (OrganizationResponse)serializer.ReadObject(bodyReader, true, new KnownTypesResolver());
+
+                        bodyReader.ReadEndElement(); // ExecuteRepsonse
+
+                        return response;
+                    }
+                }
+            }
+            catch (WebException ex)
+            {
+                using (var errorStream = ex.Response.GetResponseStream())
+                {
+                    var reader = XmlReader.Create(errorStream, new XmlReaderSettings());
+                    var responseMessage = Message.CreateMessage(reader, 0x10000, MessageVersion.Soap12WSAddressing10);
+                    var responseAction = responseMessage.Headers.Action;
+
+                    using (var bodyReader = responseMessage.GetReaderAtBodyContents())
+                    {
+                        if (bodyReader.LocalName == "Fault" && bodyReader.NamespaceURI == Namespaces.Soap)
+                            throw FaultReader.ReadFault(bodyReader, responseAction);
+
+                        throw;
+                    }
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<Entity> RetrieveAsync(string entityName, Guid id, ColumnSet columnSet, CancellationToken cancellationToken)
+        {
+            var resp = (RetrieveResponse)await ExecuteAsync(new RetrieveRequest { Target = new EntityReference(entityName, id), ColumnSet = columnSet }, cancellationToken).ConfigureAwait(false);
+            return resp.Entity;
+        }
+
+        /// <inheritdoc/>
+        public async Task<EntityCollection> RetrieveMultipleAsync(QueryBase query, CancellationToken cancellationToken)
+        {
+            var resp = (RetrieveMultipleResponse)await ExecuteAsync(new RetrieveMultipleRequest { Query = query }, cancellationToken).ConfigureAwait(false);
+            return resp.EntityCollection;
+        }
+
+        /// <inheritdoc/>
+        public Task UpdateAsync(Entity entity, CancellationToken cancellationToken)
+        {
+            return ExecuteAsync(new UpdateRequest { Target = entity }, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public Task<Guid> CreateAsync(Entity entity)
+        {
+            return CreateAsync(entity, CancellationToken.None);
+        }
+
+        /// <inheritdoc/>
+        public Task<Entity> RetrieveAsync(string entityName, Guid id, ColumnSet columnSet)
+        {
+            return RetrieveAsync(entityName, id, columnSet, CancellationToken.None);
+        }
+
+        /// <inheritdoc/>
+        public Task UpdateAsync(Entity entity)
+        {
+            return UpdateAsync(entity, CancellationToken.None);
+        }
+
+        /// <inheritdoc/>
+        public Task DeleteAsync(string entityName, Guid id)
+        {
+            return DeleteAsync(entityName, id, CancellationToken.None);
+        }
+
+        /// <inheritdoc/>
+        public Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request)
+        {
+            return ExecuteAsync(request, CancellationToken.None);
+        }
+
+        /// <inheritdoc/>
+        public Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            return AssociateAsync(entityName, entityId, relationship, relatedEntities, CancellationToken.None);
+        }
+
+        /// <inheritdoc/>
+        public Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            return DisassociateAsync(entityName, entityId, relationship, relatedEntities, CancellationToken.None);
+        }
+
+        /// <inheritdoc/>
+        public Task<EntityCollection> RetrieveMultipleAsync(QueryBase query)
+        {
+            return RetrieveMultipleAsync(query, CancellationToken.None);
+        }
+
         private class ExecuteRequestWriter : BodyWriter
         {
             private readonly OrganizationRequest _request;
+            private readonly ProxySerializationSurrogate _serializationSurrogate;
 
-            public ExecuteRequestWriter(OrganizationRequest request) : base(isBuffered: true)
+            public ExecuteRequestWriter(OrganizationRequest request, ProxySerializationSurrogate serializationSurrogate) : base(isBuffered: true)
             {
                 _request = request;
+                _serializationSurrogate = serializationSurrogate;
             }
 
             protected override void OnWriteBodyContents(XmlDictionaryWriter writer)
             {
                 writer.WriteStartElement("Execute", Namespaces.Xrm2011Services);
 
+#if NETCOREAPP
                 var serializer = new DataContractSerializer(typeof(OrganizationRequest), "request", Namespaces.Xrm2011Services);
+                serializer.SetSerializationSurrogateProvider(_serializationSurrogate);
+#else
+                var serializer = new DataContractSerializer(typeof(OrganizationRequest), "request", Namespaces.Xrm2011Services, null, Int32.MaxValue, false, true, _serializationSurrogate);
+#endif
+
                 serializer.WriteObject(writer, _request, new KnownTypesResolver());
 
                 writer.WriteEndElement(); // Execute

@@ -5,9 +5,14 @@ extern alias SSS;
 
 using System;
 using System.ServiceModel;
-using System.ServiceModel.Channels;
 using System.ServiceModel.Federation;
+using System.Reflection;
+using System.ServiceModel.Description;
+using Binding = System.ServiceModel.Channels.Binding;
+using Microsoft.PowerPlatform.Dataverse.Client;
 using Microsoft.Xrm.Sdk;
+using System.Threading.Tasks;
+using Microsoft.Xrm.Sdk.Query;
 
 #if NET462_OR_GREATER
 using WSFederationHttpBinding = System.ServiceModel.Federation.WSFederationHttpBinding;
@@ -25,8 +30,14 @@ namespace Data8.PowerPlatform.Dataverse.Client
     /// <summary>
     /// Inner client to set up the SOAP channel using WS-Trust
     /// </summary>
-    class ClaimsBasedAuthClient : ClientBase<IOrganizationService>
+#if NETCOREAPP
+    class ClaimsBasedAuthClient : ClientBase<IOrganizationServiceAsync>, IOrganizationServiceAsync, IInnerOrganizationService
+#else
+    class ClaimsBasedAuthClient : ClientBase<IOrganizationService>, IOrganizationService, IInnerOrganizationService
+#endif
     {
+        private readonly ProxySerializationSurrogate _serializationSurrogate;
+
         /// <summary>
         /// A binding for WS-Trust that uses server entropy
         /// </summary>
@@ -50,8 +61,47 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// </summary>
         /// <param name="url">The URL of the organization service</param>
         /// <param name="issuerEndpoint">The URL of the STS endpoint</param>
-        public ClaimsBasedAuthClient(string url, string issuerEndpoint) : base(CreateFederatedBinding(issuerEndpoint), new EndpointAddress(url))
+        public ClaimsBasedAuthClient(string url, string issuerEndpoint) : base(CreateServiceEndpoint(url, issuerEndpoint))
         {
+            _serializationSurrogate = new ProxySerializationSurrogate();
+
+            foreach (var operation in Endpoint.Contract.Operations)
+            {
+                var operationBehavior = operation.Behaviors.Find<DataContractSerializerOperationBehavior>();
+#if NETCOREAPP
+                operationBehavior.SerializationSurrogateProvider = _serializationSurrogate;
+#else
+                operationBehavior.DataContractSurrogate = _serializationSurrogate;
+#endif
+            }
+        }
+
+        private static ServiceEndpoint CreateServiceEndpoint(string url, string issuerEndpoint)
+        {
+            var binding = CreateFederatedBinding(issuerEndpoint);
+            var endpointAddress = new EndpointAddress(url);
+
+            var serviceInterfaceType = typeof(ClaimsBasedAuthClient).BaseType.GetGenericArguments()[0];
+            var serviceEndpoint = new ServiceEndpoint(ContractDescription.GetContract(serviceInterfaceType), binding, endpointAddress);
+
+            foreach (var operation in serviceEndpoint.Contract.Operations)
+            {
+                var operationBehavior = operation.Behaviors.Find<DataContractSerializerOperationBehavior>();
+                operationBehavior.MaxItemsInObjectGraph = Int32.MaxValue;
+            }
+
+            return serviceEndpoint;
+        }
+
+        public TimeSpan Timeout
+        {
+            get { return InnerChannel.OperationTimeout; }
+            set { InnerChannel.OperationTimeout = value; }
+        }
+
+        public void EnableProxyTypes(Assembly assembly)
+        {
+            _serializationSurrogate.LoadAssembly(assembly);
         }
 
         private static Binding CreateFederatedBinding(string issuerEndpoint)
@@ -64,7 +114,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             var issuerBinding = new ServerEntropyWS2007HttpBinding(SecurityMode.TransportWithMessageCredential);
             issuerBinding.Security.Message.ClientCredentialType = MessageCredentialType.UserName;
             issuerBinding.Security.Message.EstablishSecurityContext = false;
-                
+
             // Next, create the token issuer's endpoint address
             var endpointAddress = new EndpointAddress(issuerEndpoint);
 
@@ -86,6 +136,88 @@ namespace Data8.PowerPlatform.Dataverse.Client
             binding.ReaderQuotas.MaxNameTableCharCount = Int32.MaxValue;
 
             return binding;
+        }
+
+#if NETCOREAPP
+        public Task<Guid> CreateAsync(Entity entity)
+        {
+            return Channel.CreateAsync(entity);
+        }
+
+        public Task<Entity> RetrieveAsync(string entityName, Guid id, ColumnSet columnSet)
+        {
+            return Channel.RetrieveAsync(entityName, id, columnSet);
+        }
+
+        public Task UpdateAsync(Entity entity)
+        {
+            return Channel.UpdateAsync(entity);
+        }
+
+        public Task DeleteAsync(string entityName, Guid id)
+        {
+            return Channel.DeleteAsync(entityName, id);
+        }
+
+        public Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request)
+        {
+            return Channel.ExecuteAsync(request);
+        }
+
+        public Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            return Channel.AssociateAsync(entityName, entityId, relationship, relatedEntities);
+        }
+
+        public Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            return Channel.DisassociateAsync(entityName, entityId, relationship, relatedEntities);
+        }
+
+        public Task<EntityCollection> RetrieveMultipleAsync(QueryBase query)
+        {
+            return Channel.RetrieveMultipleAsync(query);
+        }
+#endif
+
+        public Guid Create(Entity entity)
+        {
+            return Channel.Create(entity);
+        }
+
+        public Entity Retrieve(string entityName, Guid id, ColumnSet columnSet)
+        {
+            return Channel.Retrieve(entityName, id, columnSet);
+        }
+
+        public void Update(Entity entity)
+        {
+            Channel.Update(entity);
+        }
+
+        public void Delete(string entityName, Guid id)
+        {
+            Channel.Delete(entityName, id);
+        }
+
+        public OrganizationResponse Execute(OrganizationRequest request)
+        {
+            return Channel.Execute(request);
+        }
+
+        public void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            Channel.Associate(entityName, entityId, relationship, relatedEntities);
+        }
+
+        public void Disassociate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            Channel.Disassociate(entityName, entityId, relationship, relatedEntities);
+        }
+
+        public EntityCollection RetrieveMultiple(QueryBase query)
+        {
+            return Channel.RetrieveMultiple(query);
         }
     }
 }

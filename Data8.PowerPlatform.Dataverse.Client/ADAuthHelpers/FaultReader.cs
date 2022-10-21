@@ -1,10 +1,8 @@
-﻿using Microsoft.Xrm.Sdk;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Runtime.Serialization;
 using System.ServiceModel;
-using System.Text;
 using System.Xml;
+using Microsoft.Xrm.Sdk;
 
 namespace Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers
 {

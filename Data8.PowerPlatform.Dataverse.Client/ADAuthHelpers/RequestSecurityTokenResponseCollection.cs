@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Security.Cryptography;
-using System.Text;
+﻿using System.Collections.Generic;
 using System.Xml;
 
 namespace Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers

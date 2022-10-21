@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Security.Cryptography;
-using System.ServiceModel.Channels;
-using System.Text;
 using System.Xml;
 
 namespace Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers
@@ -73,7 +69,7 @@ namespace Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers
 
                 if (isFinal)
                 {
-                    var clone = (XmlDocument) doc.Clone();
+                    var clone = (XmlDocument)doc.Clone();
                     var rst = clone.SelectSingleNode("//*[local-name()='RequestedSecurityToken']");
                     var rpt = clone.SelectSingleNode("//*[local-name()='RequestedProofToken']");
 
