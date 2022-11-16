@@ -313,6 +313,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 }
             }
             catch (WebException ex)
+            when (ex.Response != null)
             {
                 using (var errorStream = ex.Response.GetResponseStream())
                 {
