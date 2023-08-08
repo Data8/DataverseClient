@@ -68,7 +68,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             // Get the version number of the SDK we're using
             var assembly = typeof(IOrganizationService).Assembly;
 
-            if (!String.IsNullOrEmpty(assembly.Location) && File.Exists(assembly.Location))
+            if (!string.IsNullOrEmpty(assembly.Location) && File.Exists(assembly.Location))
             {
                 var ver = FileVersionInfo.GetVersionInfo(assembly.Location);
                 _sdkVersion = ver.FileVersion;
