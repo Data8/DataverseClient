@@ -14,6 +14,7 @@ using Microsoft.PowerPlatform.Dataverse.Client;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Client;
 using Microsoft.Xrm.Sdk.Query;
+using AuthenticationType = Data8.PowerPlatform.Dataverse.Client.Wsdl.AuthenticationType;
 
 namespace Data8.PowerPlatform.Dataverse.Client
 {
@@ -56,6 +57,13 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 _scope?.Dispose();
             }
         }
+
+        private readonly string _url;
+        private readonly ClientCredentials _credentials;
+
+        private readonly AuthenticationType _authenticationType;
+        private readonly List<Policy> _policies;
+        private readonly Identity _identity;
 
         private IInnerOrganizationService _innerService;
         private IOrganizationServiceAsync _service;
@@ -125,15 +133,18 @@ namespace Data8.PowerPlatform.Dataverse.Client
             if (!new Uri(url).Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
                 throw new NotSupportedException("Only https connections are supported");
 
+            _url = url;
+            _credentials = credentials;
+
             // Get the WSDL of the target to find the authentication type and the URL of the STS for Federated auth
             var wsdl = WsdlLoader.Load(url + "?wsdl&sdkversion=" + _sdkMajorVersion).ToList();
 
-            var policies = wsdl
+            _policies = wsdl
                 .Where(w => w.Policies != null)
                 .SelectMany(w => w.Policies)
                 .ToList();
 
-            var authenticationPolicy = policies
+            var authenticationPolicy = _policies
                 .Select(p => p.FindPolicyItem<AuthenticationPolicy>())
                 .FirstOrDefault(t => t != null);
 
@@ -142,35 +153,38 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 throw new InvalidOperationException("Unable to find authentication policy");
             }
 
-            switch (authenticationPolicy.Authentication)
+            _authenticationType = authenticationPolicy.Authentication;
+
+            if(_authenticationType == AuthenticationType.ActiveDirectory)
             {
-                case Wsdl.AuthenticationType.ActiveDirectory:
-                    var identity = wsdl
-                        .Where(w => w.Services != null)
-                        .SelectMany(w => w.Services)
-                        .Single()
-                        .Ports
-                        .Single(port => new Uri(port.Address.Location).Scheme.Equals(new Uri(url).Scheme, StringComparison.OrdinalIgnoreCase))
-                        .EndpointReference
-                        .Identity;
-
-                    _innerService = ConnectAD(url, credentials, identity?.Upn ?? identity?.Spn);
-                    break;
-
-                case Wsdl.AuthenticationType.Federation:
-                    _innerService = ConnectFederated(url, credentials, policies);
-                    break;
-
-                default:
-                    throw new NotSupportedException("Unknown authentication policy " + authenticationPolicy.Authentication);
+                _identity = wsdl
+                    .Where(w => w.Services != null)
+                    .SelectMany(w => w.Services)
+                    .Single()
+                    .Ports
+                    .Single(port => new Uri(port.Address.Location).Scheme.Equals(new Uri(url).Scheme, StringComparison.OrdinalIgnoreCase))
+                    .EndpointReference
+                    .Identity;
             }
 
-            if (_innerService is IOrganizationServiceAsync async)
-                _service = async;
-            else
-                _service = new OrgServiceAsyncWrapper(_innerService);
+            _innerService = GetInnerService();
+            _innerService.Timeout = TimeSpan.FromMinutes(2);
+            _service = _innerService as IOrganizationServiceAsync ?? new OrgServiceAsyncWrapper(_innerService);
+        }
 
-            Timeout = TimeSpan.FromMinutes(2);
+        private IInnerOrganizationService GetInnerService()
+        {
+            switch (_authenticationType)
+            {
+                case AuthenticationType.ActiveDirectory:
+                    return ConnectAD(_url, _credentials, _identity?.Upn ?? _identity?.Spn);
+
+                case AuthenticationType.Federation:
+                    return ConnectFederated(_url, _credentials, _policies);
+
+                default:
+                    throw new NotSupportedException("Unknown authentication policy " + _authenticationType);
+            }
         }
 
         /// <summary>
@@ -179,7 +193,12 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// <returns></returns>
         public OnPremiseClient Clone()
         {
-            return new OnPremiseClient(_innerService, _service);
+            var innerService = GetInnerService();
+            innerService.Timeout = TimeSpan.FromMinutes(2);
+
+            var service = innerService as IOrganizationServiceAsync ?? new OrgServiceAsyncWrapper(innerService);
+
+            return new OnPremiseClient(innerService, service);
         }
 
         private ClaimsBasedAuthClient ConnectFederated(string url, ClientCredentials credentials, List<Policy> policies)
