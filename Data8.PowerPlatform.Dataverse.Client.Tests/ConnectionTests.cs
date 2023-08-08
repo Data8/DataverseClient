@@ -43,7 +43,6 @@ namespace Data8.PowerPlatform.Dataverse.Client.Tests
 
             var newClient = client.Clone();
 
-            client.Dispose();
             client = null;
 
             var resp2 = (WhoAmIResponse)newClient.Execute(new WhoAmIRequest());

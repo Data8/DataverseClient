@@ -24,7 +24,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
     /// <remarks>
     /// Claims-based authentication, IFD and Active Directory authentication are all supported.
     /// </remarks>
-    public class OnPremiseClient : IOrganizationServiceAsync2, IDisposable
+    public class OnPremiseClient : IOrganizationServiceAsync2
     {
         /// <summary>
         /// Adds headers into the SOAP requests
@@ -517,33 +517,5 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 return _service.RetrieveMultipleAsync(query);
             }
         }
-
-        #region IDisposable Support
-
-        private bool isDisposed; // To detect redundant calls
-
-        private void Dispose(bool disposing)
-        {
-            if (!isDisposed)
-            {
-                if (disposing)
-                {
-                    _innerService = null;
-                    _service = null;
-                }
-                isDisposed = true;
-            }
-        }
-
-
-        /// <summary>
-        /// Disposed the resources used by the ServiceClient.
-        /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-        #endregion
     }
 }
