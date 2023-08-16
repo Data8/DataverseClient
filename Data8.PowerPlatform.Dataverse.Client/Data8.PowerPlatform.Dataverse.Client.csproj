@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net462;net472;net48;netcoreapp3.1;net7.0</TargetFrameworks>
+    <TargetFrameworks>net462;net472;net48;netcoreapp3.1;net7.0;net8.0</TargetFrameworks>
     <Authors>MarkMpn,Data8 Ltd</Authors>
     <Copyright>Copyright © 2021 Data8 Limited</Copyright>
     <RepositoryUrl>https://github.com/Data8/DataverseClient</RepositoryUrl>

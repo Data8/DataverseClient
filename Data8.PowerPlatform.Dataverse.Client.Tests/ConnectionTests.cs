@@ -1,4 +1,6 @@
 using System;
+using System.Net;
+using System.Threading.Tasks;
 using Microsoft.Crm.Sdk.Messages;
 using Xunit;
 
@@ -6,6 +8,12 @@ namespace Data8.PowerPlatform.Dataverse.Client.Tests
 {
     public class ConnectionTests
     {
+        public ConnectionTests() 
+        { 
+            //allow all certificates
+            ServicePointManager.ServerCertificateValidationCallback += (sender, cert, chain, sslPolicyErrors) => true;
+        }
+
         [Fact]
         public void ADTest()
         {
@@ -15,6 +23,17 @@ namespace Data8.PowerPlatform.Dataverse.Client.Tests
 
             var client = new OnPremiseClient(adUrl, adUsername, adPassword);
             client.Execute(new WhoAmIRequest());
+        }
+
+        [Fact]
+        public async Task ADTestAsync()
+        {
+            var adUrl = Environment.GetEnvironmentVariable("AD_URL");
+            var adUsername = Environment.GetEnvironmentVariable("AD_USERNAME");
+            var adPassword = Environment.GetEnvironmentVariable("AD_PASSWORD");
+
+            var client = new OnPremiseClient(adUrl, adUsername, adPassword);
+            var response = await client.ExecuteAsync(new WhoAmIRequest());
         }
 
         [Fact]

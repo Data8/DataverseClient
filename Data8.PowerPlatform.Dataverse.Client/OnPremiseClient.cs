@@ -128,9 +128,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 .ToList();
 
             var authenticationPolicy = policies
-                .Select(p => p.FindPolicyItem<Wsdl.AuthenticationPolicy>())
-                .Where(t => t != null)
-                .FirstOrDefault();
+                .Select(p => p.FindPolicyItem<AuthenticationPolicy>())
+                .FirstOrDefault(t => t != null);
 
             if (authenticationPolicy == null)
                 throw new InvalidOperationException("Unable to find authentication policy");
@@ -143,8 +142,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                         .SelectMany(w => w.Services)
                         .Single()
                         .Ports
-                        .Where(port => new Uri(port.Address.Location).Scheme.Equals(new Uri(url).Scheme, StringComparison.OrdinalIgnoreCase))
-                        .Single()
+                        .Single(port => new Uri(port.Address.Location).Scheme.Equals(new Uri(url).Scheme, StringComparison.OrdinalIgnoreCase))
                         .EndpointReference
                         .Identity;
 
@@ -170,9 +168,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
         private ClaimsBasedAuthClient ConnectFederated(string url, ClientCredentials credentials, List<Policy> policies)
         {
             var tokenEndpoint = policies
-                .Select(p => p.FindPolicyItem<Wsdl.EndorsingSupportingTokens>())
-                .Where(t => t != null)
-                .FirstOrDefault();
+                .Select(p => p.FindPolicyItem<EndorsingSupportingTokens>())
+                .FirstOrDefault(t => t != null);
 
             var issuer = tokenEndpoint.Policy.FindPolicyItem<Wsdl.IssuedToken>();
             var issuerMetadataEndpoint = issuer.Issuer.Metadata.Metadata.MetadataSection.MetadataReference.Address;
@@ -185,8 +182,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 .ToList();
 
             var usernameWsTrust13Policy = issuerPolicies
-                .Where(p => p.FindPolicyItem<SignedEncryptedSupportingTokens>()?.Policy.FindPolicyItem<UsernameToken>() != null && p.FindPolicyItem<Trust13>() != null)
-                .FirstOrDefault();
+                .FirstOrDefault(p => p.FindPolicyItem<SignedEncryptedSupportingTokens>()?.Policy.FindPolicyItem<UsernameToken>() != null && p.FindPolicyItem<Trust13>() != null);
 
             var issuerBindings = issuerWsdls
                 .Where(wsdl => wsdl.Bindings != null)
@@ -194,8 +190,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 .ToList();
 
             var usernameWsTrust13Binding = issuerBindings
-                .Where(b => b.PolicyReference.Uri == "#" + usernameWsTrust13Policy.Id)
-                .FirstOrDefault();
+                .FirstOrDefault(b => b.PolicyReference.Uri == "#" + usernameWsTrust13Policy.Id);
 
             var issuerPorts = issuerWsdls
                 .Where(wsdl => wsdl.Services != null)
@@ -204,8 +199,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 .ToList();
 
             var usernameWsTrust13Port = issuerPorts
-                .Where(p => p.Binding == "tns:" + usernameWsTrust13Binding.Name)
-                .FirstOrDefault();
+                .FirstOrDefault(p => p.Binding == "tns:" + usernameWsTrust13Binding.Name);
 
             // Create the SOAP client to authenticate against the STS
             var client = new ClaimsBasedAuthClient(url, usernameWsTrust13Port.Address.Location);
@@ -341,10 +335,10 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities, CancellationToken cancellationToken)
+        public async Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return AssociateAsync(entityName, entityId, relationship, relatedEntities);
+            await AssociateAsync(entityName, entityId, relationship, relatedEntities);
         }
 
         /// <inheritdoc/>
@@ -361,116 +355,116 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public Task DeleteAsync(string entityName, Guid id, CancellationToken cancellationToken)
+        public async Task DeleteAsync(string entityName, Guid id, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return DeleteAsync(entityName, id);
+            await DeleteAsync(entityName, id);
         }
 
         /// <inheritdoc/>
-        public Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities, CancellationToken cancellationToken)
+        public async Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return DisassociateAsync(entityName, entityId, relationship, relatedEntities);
+            await DisassociateAsync(entityName, entityId, relationship, relatedEntities);
         }
 
         /// <inheritdoc/>
-        public Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request, CancellationToken cancellationToken)
+        public async Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return ExecuteAsync(request);
+            return await ExecuteAsync(request);
         }
 
         /// <inheritdoc/>
-        public Task<Entity> RetrieveAsync(string entityName, Guid id, ColumnSet columnSet, CancellationToken cancellationToken)
+        public async Task<Entity> RetrieveAsync(string entityName, Guid id, ColumnSet columnSet, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return RetrieveAsync(entityName, id, columnSet);
+            return await RetrieveAsync(entityName, id, columnSet);
         }
 
         /// <inheritdoc/>
-        public Task<EntityCollection> RetrieveMultipleAsync(QueryBase query, CancellationToken cancellationToken)
+        public async Task<EntityCollection> RetrieveMultipleAsync(QueryBase query, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return RetrieveMultipleAsync(query);
+            return await RetrieveMultipleAsync(query);
         }
 
         /// <inheritdoc/>
-        public Task UpdateAsync(Entity entity, CancellationToken cancellationToken)
+        public async Task UpdateAsync(Entity entity, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return UpdateAsync(entity);
+            await UpdateAsync(entity);
         }
 
         /// <inheritdoc/>
-        public Task<Guid> CreateAsync(Entity entity)
+        public async Task<Guid> CreateAsync(Entity entity)
         {
             using (StartScope())
             {
-                return _service.CreateAsync(entity);
+                return await _service.CreateAsync(entity);
             }
         }
 
         /// <inheritdoc/>
-        public Task<Entity> RetrieveAsync(string entityName, Guid id, ColumnSet columnSet)
+        public async Task<Entity> RetrieveAsync(string entityName, Guid id, ColumnSet columnSet)
         {
             using (StartScope())
             {
-                return _service.RetrieveAsync(entityName, id, columnSet);
+                return await _service.RetrieveAsync(entityName, id, columnSet);
             }
         }
 
         /// <inheritdoc/>
-        public Task UpdateAsync(Entity entity)
+        public async Task UpdateAsync(Entity entity)
         {
             using (StartScope())
             {
-                return _service.UpdateAsync(entity);
+                await _service.UpdateAsync(entity);
             }
         }
 
         /// <inheritdoc/>
-        public Task DeleteAsync(string entityName, Guid id)
+        public async Task DeleteAsync(string entityName, Guid id)
         {
             using (StartScope())
             {
-                return _service.DeleteAsync(entityName, id);
+                await _service.DeleteAsync(entityName, id);
             }
         }
 
         /// <inheritdoc/>
-        public Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request)
+        public async Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request)
         {
             using (StartScope())
             {
-                return _service.ExecuteAsync(request);
+                return await _service.ExecuteAsync(request);
             }
         }
 
         /// <inheritdoc/>
-        public Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        public async Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
         {
             using (StartScope())
             {
-                return _service.AssociateAsync(entityName, entityId, relationship, relatedEntities);
+                await _service.AssociateAsync(entityName, entityId, relationship, relatedEntities);
             }
         }
 
         /// <inheritdoc/>
-        public Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        public async Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
         {
             using (StartScope())
             {
-                return _service.DisassociateAsync(entityName, entityId, relationship, relatedEntities);
+                await _service.DisassociateAsync(entityName, entityId, relationship, relatedEntities);
             }
         }
 
         /// <inheritdoc/>
-        public Task<EntityCollection> RetrieveMultipleAsync(QueryBase query)
+        public async Task<EntityCollection> RetrieveMultipleAsync(QueryBase query)
         {
             using (StartScope())
             {
-                return _service.RetrieveMultipleAsync(query);
+                return await _service.RetrieveMultipleAsync(query);
             }
         }
     }
