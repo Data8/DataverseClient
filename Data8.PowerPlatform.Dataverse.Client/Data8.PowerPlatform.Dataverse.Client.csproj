@@ -91,6 +91,7 @@ void CreateRecord(IOrganizationService svc)
 	</ItemGroup>
 
   <ItemGroup>
+    <None Include="..\.editorconfig" Link=".editorconfig" />
     <None Include="..\Data8.png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>

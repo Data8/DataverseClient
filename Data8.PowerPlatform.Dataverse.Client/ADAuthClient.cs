@@ -8,6 +8,7 @@ using System.Buffers;
 using System.Net.Security;
 #else
 using NSspi.Contexts;
+using NSspi.Credentials;
 #endif
 using System;
 using System.Net;
@@ -18,6 +19,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+
 
 namespace Data8.PowerPlatform.Dataverse.Client
 {
@@ -47,7 +49,9 @@ namespace Data8.PowerPlatform.Dataverse.Client
         {
 #if !NET7_0_OR_GREATER
             if (Environment.OSVersion.Platform == PlatformID.Unix)
+            {
                 throw new PlatformNotSupportedException("Windows authentication is only available on Windows clients or when using .NET 7");
+            }
 #endif
 
             _url = url;
@@ -104,15 +108,13 @@ namespace Data8.PowerPlatform.Dataverse.Client
         private void Authenticate()
         {
             if (_tokenExpires > DateTime.UtcNow.AddSeconds(10))
+            {
                 return;
+            }
 
 #if NET7_0_OR_GREATER
-            NetworkCredential cred;
 
-            if (string.IsNullOrEmpty(_username))
-                cred = CredentialCache.DefaultNetworkCredentials;
-            else
-                cred = new NetworkCredential(_username, _password, _domain);
+            var cred = string.IsNullOrEmpty(_username) ? CredentialCache.DefaultNetworkCredentials : new NetworkCredential(_username, _password, _domain);
 
             var context = new NegotiateAuthentication(new NegotiateAuthenticationClientOptions
             {
@@ -126,24 +128,24 @@ namespace Data8.PowerPlatform.Dataverse.Client
             if (state != NegotiateAuthenticationStatusCode.ContinueNeeded)
             {
                 if (state == NegotiateAuthenticationStatusCode.Unsupported && Environment.OSVersion.Platform == PlatformID.Unix)
+                {
                     throw new ApplicationException("Error authenticating with the server: " + state + ". Ensure you have the gss-ntlmssp package installed.");
-                else
-                    throw new ApplicationException("Error authenticating with the server: " + state);
+                }
+
+                throw new ApplicationException("Error authenticating with the server: " + state);
             }
 #else
             // Set up the SSPI context
-            NSspi.Credentials.Credential cred;
 
-            if (string.IsNullOrEmpty(_username))
-                cred = new NSspi.Credentials.CurrentCredential(NSspi.PackageNames.Negotiate, NSspi.Credentials.CredentialUse.Outbound);
-            else
-                cred = new NSspi.Credentials.PasswordCredential(_domain, _username, _password, NSspi.PackageNames.Negotiate, NSspi.Credentials.CredentialUse.Outbound);
+            var cred = string.IsNullOrEmpty(_username) ? (Credential)new CurrentCredential(NSspi.PackageNames.Negotiate, CredentialUse.Outbound) : new PasswordCredential(_domain, _username, _password, NSspi.PackageNames.Negotiate, CredentialUse.Outbound);
 
             var context = new ClientContext(cred, _upn, ContextAttrib.ReplayDetect | ContextAttrib.SequenceDetect | ContextAttrib.Confidentiality | ContextAttrib.InitIdentify);
             var state = context.Init(null, out var token);
 
             if (state != NSspi.SecurityStatus.ContinueNeeded)
+            {
                 throw new ApplicationException("Error authenticating with the server: " + state);
+            }
 #endif
 
             // Keep a hash of all the RSTs and RSTRs that have been sent so we can validate the authenticator
@@ -158,23 +160,26 @@ namespace Data8.PowerPlatform.Dataverse.Client
             // Keep exchanging tokens until we get a full RSTR
             while (finalResponse == null)
             {
-                if (resp is RequestSecurityTokenResponse r)
-                {
+                if (!(resp is RequestSecurityTokenResponse r)) continue;
+
 #if NET7_0_OR_GREATER
                     token = context.GetOutgoingBlob(r.BinaryExchange.Token, out state);
 
                     if (state != NegotiateAuthenticationStatusCode.Completed && state != NegotiateAuthenticationStatusCode.ContinueNeeded)
+                    {
                         throw new ApplicationException("Error authenticating with the server: " + state);
+                    }
 #else
-                    state = context.Init(r.BinaryExchange.Token, out token);
+                state = context.Init(r.BinaryExchange.Token, out token);
 
-                    if (state != NSspi.SecurityStatus.OK && state != NSspi.SecurityStatus.ContinueNeeded)
-                        throw new ApplicationException("Error authenticating with the server: " + state);
+                if (state != NSspi.SecurityStatus.OK && state != NSspi.SecurityStatus.ContinueNeeded)
+                {
+                    throw new ApplicationException("Error authenticating with the server: " + state);
+                }
 #endif
 
-                    resp = new RequestSecurityTokenResponse(r.Context, token).Execute(_url, auth);
-                    finalResponse = resp as RequestSecurityTokenResponseCollection;
-                }
+                resp = new RequestSecurityTokenResponse(r.Context, token).Execute(_url, auth);
+                finalResponse = resp as RequestSecurityTokenResponseCollection;
             }
 
             var wrappedToken = finalResponse.Responses[0].RequestedProofToken.CipherValue;
@@ -183,24 +188,34 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
 #if NET7_0_OR_GREATER
             if (state != NegotiateAuthenticationStatusCode.Completed)
+            {
                 token = context.GetOutgoingBlob(finalResponse.Responses[0].BinaryExchange.Token, out state);
+            }
 
             if (state != NegotiateAuthenticationStatusCode.Completed)
+            {
                 throw new ApplicationException("Error authenticating with the server: " + state);
+            }
 
             var unwrappedTokenWriter = new ArrayBufferWriter<byte>(wrappedToken.Length);
             state = context.Unwrap(wrappedToken, unwrappedTokenWriter, out _);
 
             if (state != NegotiateAuthenticationStatusCode.Completed)
+            {
                 throw new ApplicationException("Error authenticating with the server: " + state);
+            }
 
             _proofToken = unwrappedTokenWriter.WrittenSpan.ToArray();
 #else
             if (state != NSspi.SecurityStatus.OK)
+            {
                 state = context.Init(finalResponse.Responses[0].BinaryExchange.Token, out _);
+            }
 
             if (state != NSspi.SecurityStatus.OK)
+            {
                 throw new ApplicationException("Error authenticating with the server: " + state);
+            }
 
             _proofToken = context.Decrypt(wrappedToken, true);
 #endif
@@ -212,41 +227,6 @@ namespace Data8.PowerPlatform.Dataverse.Client
         public void EnableProxyTypes(Assembly assembly)
         {
             _serializationSurrogate.LoadAssembly(assembly);
-        }
-
-        /// <inheritdoc/>
-        public void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
-        {
-            Execute(new AssociateRequest
-            {
-                Target = new EntityReference(entityName, entityId),
-                Relationship = relationship,
-                RelatedEntities = relatedEntities
-            });
-        }
-
-        /// <inheritdoc/>
-        public Guid Create(Entity entity)
-        {
-            var resp = (CreateResponse)Execute(new CreateRequest { Target = entity });
-            return resp.id;
-        }
-
-        /// <inheritdoc/>
-        public void Delete(string entityName, Guid id)
-        {
-            Execute(new DeleteRequest { Target = new EntityReference(entityName, id) });
-        }
-
-        /// <inheritdoc/>
-        public void Disassociate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
-        {
-            Execute(new DisassociateRequest
-            {
-                Target = new EntityReference(entityName, entityId),
-                Relationship = relationship,
-                RelatedEntities = relatedEntities
-            });
         }
 
         /// <inheritdoc/>
@@ -333,64 +313,89 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
+        public void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            var request = new AssociateRequest
+            {
+                Target = new EntityReference(entityName, entityId),
+                Relationship = relationship,
+                RelatedEntities = relatedEntities
+            };
+            Execute(request);
+        }
+
+        /// <inheritdoc/>
+        public void Disassociate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            var request = new DisassociateRequest
+            {
+                Target = new EntityReference(entityName, entityId),
+                Relationship = relationship,
+                RelatedEntities = relatedEntities
+            };
+            Execute(request);
+        }
+
+        /// <inheritdoc/>
+        public Guid Create(Entity entity)
+        {
+            var request = new CreateRequest
+            {
+                Target = entity
+            };
+            var response = (CreateResponse)Execute(request);
+            return response.id;
+        }
+
+        /// <inheritdoc/>
         public Entity Retrieve(string entityName, Guid id, ColumnSet columnSet)
         {
-            var resp = (RetrieveResponse)Execute(new RetrieveRequest { Target = new EntityReference(entityName, id), ColumnSet = columnSet });
-            return resp.Entity;
+            var request = new RetrieveRequest
+            {
+                Target = new EntityReference(entityName, id),
+                ColumnSet = columnSet
+            };
+            var response = (RetrieveResponse)Execute(request);
+            return response.Entity;
         }
 
         /// <inheritdoc/>
         public EntityCollection RetrieveMultiple(QueryBase query)
         {
-            var resp = (RetrieveMultipleResponse)Execute(new RetrieveMultipleRequest { Query = query });
-            return resp.EntityCollection;
+            var request = new RetrieveMultipleRequest
+            {
+                Query = query
+            };
+            var response = (RetrieveMultipleResponse)Execute(request);
+            return response.EntityCollection;
         }
 
         /// <inheritdoc/>
         public void Update(Entity entity)
         {
-            Execute(new UpdateRequest { Target = entity });
-        }
-
-        /// <inheritdoc/>
-        public Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities, CancellationToken cancellationToken)
-        {
-            return ExecuteAsync(new AssociateRequest
+            var request = new UpdateRequest
             {
-                Target = new EntityReference(entityName, entityId),
-                Relationship = relationship,
-                RelatedEntities = relatedEntities
-            }, cancellationToken);
+                Target = entity
+            };
+            Execute(request);
         }
 
         /// <inheritdoc/>
-        public async Task<Guid> CreateAsync(Entity entity, CancellationToken cancellationToken)
+        public void Delete(string entityName, Guid id)
         {
-            var resp = (CreateResponse)await ExecuteAsync(new CreateRequest { Target = entity }, cancellationToken).ConfigureAwait(false);
-            return resp.id;
-        }
-
-        /// <inheritdoc/>
-        public Task<Entity> CreateAndReturnAsync(Entity entity, CancellationToken cancellationToken)
-        {
-            throw new NotImplementedException();
-        }
-
-        /// <inheritdoc/>
-        public Task DeleteAsync(string entityName, Guid id, CancellationToken cancellationToken)
-        {
-            return ExecuteAsync(new DeleteRequest { Target = new EntityReference(entityName, id) }, cancellationToken);
-        }
-
-        /// <inheritdoc/>
-        public Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities, CancellationToken cancellationToken)
-        {
-            return ExecuteAsync(new DisassociateRequest
+            var request = new DeleteRequest
             {
-                Target = new EntityReference(entityName, entityId),
-                Relationship = relationship,
-                RelatedEntities = relatedEntities
-            }, cancellationToken);
+                Target = new EntityReference(entityName, id)
+            };
+            Execute(request);
+        }
+
+
+
+        /// <inheritdoc/>
+        public async Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request)
+        {
+            return await ExecuteAsync(request, CancellationToken.None);
         }
 
         /// <inheritdoc/>
@@ -426,8 +431,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
             using (var xmlWriter = XmlDictionaryWriter.CreateDictionaryWriter(xmlTextWriter))
             {
                 message.WriteMessage(xmlWriter);
-                xmlWriter.WriteEndDocument();
-                xmlWriter.Flush();
+                await xmlWriter.WriteEndDocumentAsync();
+                await xmlWriter.FlushAsync();
             }
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -479,71 +484,124 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
+        public async Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            await AssociateAsync(entityName, entityId, relationship, relatedEntities, CancellationToken.None);
+        }
+
+        /// <inheritdoc/>
+        public async Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities, CancellationToken cancellationToken)
+        {
+            var request = new AssociateRequest
+            {
+                Target = new EntityReference(entityName, entityId),
+                Relationship = relationship,
+                RelatedEntities = relatedEntities
+            };
+            await ExecuteAsync(request, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            await DisassociateAsync(entityName, entityId, relationship, relatedEntities, CancellationToken.None);
+        }
+
+        /// <inheritdoc/>
+        public async Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities, CancellationToken cancellationToken)
+        {
+            var request = new DisassociateRequest
+            {
+                Target = new EntityReference(entityName, entityId),
+                Relationship = relationship,
+                RelatedEntities = relatedEntities
+            };
+            await ExecuteAsync(request, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async Task<Guid> CreateAsync(Entity entity)
+        {
+            return await CreateAsync(entity, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async Task<Guid> CreateAsync(Entity entity, CancellationToken cancellationToken)
+        {
+            var request = new CreateRequest { Target = entity };
+            var response = (CreateResponse)await ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
+            return response.id;
+        }
+
+        /// <inheritdoc/>
+        public async Task<Entity> CreateAndReturnAsync(Entity entity, CancellationToken cancellationToken)
+        {
+            var id = await CreateAsync(entity, cancellationToken).ConfigureAwait(false);
+            return await RetrieveAsync(entity.LogicalName, id, new ColumnSet(true), cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async Task<Entity> RetrieveAsync(string entityName, Guid id, ColumnSet columnSet)
+        {
+            return await RetrieveAsync(entityName, id, columnSet, CancellationToken.None);
+        }
+
+        /// <inheritdoc/>
         public async Task<Entity> RetrieveAsync(string entityName, Guid id, ColumnSet columnSet, CancellationToken cancellationToken)
         {
-            var resp = (RetrieveResponse)await ExecuteAsync(new RetrieveRequest { Target = new EntityReference(entityName, id), ColumnSet = columnSet }, cancellationToken).ConfigureAwait(false);
-            return resp.Entity;
+            var request = new RetrieveRequest
+            {
+                Target = new EntityReference(entityName, id),
+                ColumnSet = columnSet
+            };
+            var response = (RetrieveResponse)await ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
+            return response.Entity;
+        }
+
+        /// <inheritdoc/>
+        public async Task<EntityCollection> RetrieveMultipleAsync(QueryBase query)
+        {
+            return await RetrieveMultipleAsync(query, CancellationToken.None);
         }
 
         /// <inheritdoc/>
         public async Task<EntityCollection> RetrieveMultipleAsync(QueryBase query, CancellationToken cancellationToken)
         {
-            var resp = (RetrieveMultipleResponse)await ExecuteAsync(new RetrieveMultipleRequest { Query = query }, cancellationToken).ConfigureAwait(false);
-            return resp.EntityCollection;
+            var request = new RetrieveMultipleRequest
+            {
+                Query = query
+            };
+            var response = (RetrieveMultipleResponse)await ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
+            return response.EntityCollection;
         }
 
         /// <inheritdoc/>
-        public Task UpdateAsync(Entity entity, CancellationToken cancellationToken)
+        public async Task UpdateAsync(Entity entity)
         {
-            return ExecuteAsync(new UpdateRequest { Target = entity }, cancellationToken);
+            await UpdateAsync(entity, CancellationToken.None);
         }
 
         /// <inheritdoc/>
-        public Task<Guid> CreateAsync(Entity entity)
+        public async Task UpdateAsync(Entity entity, CancellationToken cancellationToken)
         {
-            return CreateAsync(entity, CancellationToken.None);
+            var request = new UpdateRequest
+            {
+                Target = entity
+            };
+            await ExecuteAsync(request, cancellationToken);
         }
 
         /// <inheritdoc/>
-        public Task<Entity> RetrieveAsync(string entityName, Guid id, ColumnSet columnSet)
+        public async Task DeleteAsync(string entityName, Guid id)
         {
-            return RetrieveAsync(entityName, id, columnSet, CancellationToken.None);
+            await DeleteAsync(entityName, id, CancellationToken.None);
         }
 
         /// <inheritdoc/>
-        public Task UpdateAsync(Entity entity)
+        public async Task DeleteAsync(string entityName, Guid id, CancellationToken cancellationToken)
         {
-            return UpdateAsync(entity, CancellationToken.None);
-        }
-
-        /// <inheritdoc/>
-        public Task DeleteAsync(string entityName, Guid id)
-        {
-            return DeleteAsync(entityName, id, CancellationToken.None);
-        }
-
-        /// <inheritdoc/>
-        public Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request)
-        {
-            return ExecuteAsync(request, CancellationToken.None);
-        }
-
-        /// <inheritdoc/>
-        public Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
-        {
-            return AssociateAsync(entityName, entityId, relationship, relatedEntities, CancellationToken.None);
-        }
-
-        /// <inheritdoc/>
-        public Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
-        {
-            return DisassociateAsync(entityName, entityId, relationship, relatedEntities, CancellationToken.None);
-        }
-
-        /// <inheritdoc/>
-        public Task<EntityCollection> RetrieveMultipleAsync(QueryBase query)
-        {
-            return RetrieveMultipleAsync(query, CancellationToken.None);
+            var request = new DeleteRequest { Target = new EntityReference(entityName, id) };
+            await ExecuteAsync(request, cancellationToken);
         }
 
         private class ExecuteRequestWriter : BodyWriter

@@ -32,17 +32,17 @@ namespace Data8.PowerPlatform.Dataverse.Client
         {
             private readonly OperationContextScope _scope;
 
-            public OrgServiceScope(IInnerOrganizationService svc, Guid callerId)
+            public OrgServiceScope(IOrganizationServiceAsync2 svc, Guid callerId)
             {
-                if (svc is ClaimsBasedAuthClient cbac)
+                if (svc is ClaimsBasedAuthClient claimsBasedAuthClient)
                 {
-                    _scope = new OperationContextScope(cbac.InnerChannel);
+                    _scope = new OperationContextScope(claimsBasedAuthClient.InnerChannel);
 
-                    OperationContext.Current.OutgoingMessageHeaders.Add(MessageHeader.CreateHeader("SdkClientVersion", Wsdl.Namespaces.tns, _sdkVersion));
-                    OperationContext.Current.OutgoingMessageHeaders.Add(MessageHeader.CreateHeader("UserType", Wsdl.Namespaces.tns, "CrmUser"));
+                    OperationContext.Current.OutgoingMessageHeaders.Add(MessageHeader.CreateHeader("SdkClientVersion", Namespaces.tns, _sdkVersion));
+                    OperationContext.Current.OutgoingMessageHeaders.Add(MessageHeader.CreateHeader("UserType", Namespaces.tns, "CrmUser"));
 
                     if (callerId != Guid.Empty)
-                        OperationContext.Current.OutgoingMessageHeaders.Add(MessageHeader.CreateHeader("CallerId", Wsdl.Namespaces.tns, callerId));
+                        OperationContext.Current.OutgoingMessageHeaders.Add(MessageHeader.CreateHeader("CallerId", Namespaces.tns, callerId));
                 }
                 else
                 {
@@ -57,8 +57,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             }
         }
 
-        private readonly IInnerOrganizationService _innerService;
-        private readonly IOrganizationServiceAsync _service;
+        private readonly IInnerOrganizationService _service;
 
         private static readonly string _sdkVersion;
         private static readonly int _sdkMajorVersion;
@@ -120,7 +119,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 throw new NotSupportedException("Only https connections are supported");
 
             // Get the WSDL of the target to find the authentication type and the URL of the STS for Federated auth
-            var wsdl = Wsdl.WsdlLoader.Load(url + "?wsdl&sdkversion=" + _sdkMajorVersion).ToList();
+            var wsdl = WsdlLoader.Load(url + "?wsdl&sdkversion=" + _sdkMajorVersion).ToList();
 
             var policies = wsdl
                 .Where(w => w.Policies != null)
@@ -146,21 +145,16 @@ namespace Data8.PowerPlatform.Dataverse.Client
                         .EndpointReference
                         .Identity;
 
-                    _innerService = ConnectAD(url, credentials, identity?.Upn ?? identity?.Spn);
+                    _service = ConnectAD(url, credentials, identity?.Upn ?? identity?.Spn);
                     break;
 
                 case Wsdl.AuthenticationType.Federation:
-                    _innerService = ConnectFederated(url, credentials, policies);
+                    _service = ConnectFederated(url, credentials, policies);
                     break;
 
                 default:
                     throw new NotSupportedException("Unknown authentication policy " + authenticationPolicy.Authentication);
             }
-
-            if (_innerService is IOrganizationServiceAsync async)
-                _service = async;
-            else
-                _service = new OrgServiceAsyncWrapper(_innerService);
 
             Timeout = TimeSpan.FromMinutes(2);
         }
@@ -170,6 +164,11 @@ namespace Data8.PowerPlatform.Dataverse.Client
             var tokenEndpoint = policies
                 .Select(p => p.FindPolicyItem<EndorsingSupportingTokens>())
                 .FirstOrDefault(t => t != null);
+
+            if (tokenEndpoint is null)
+            {
+                throw new InvalidOperationException("Unable to find token endpoint");
+            }
 
             var issuer = tokenEndpoint.Policy.FindPolicyItem<Wsdl.IssuedToken>();
             var issuerMetadataEndpoint = issuer.Issuer.Metadata.Metadata.MetadataSection.MetadataReference.Address;
@@ -184,6 +183,11 @@ namespace Data8.PowerPlatform.Dataverse.Client
             var usernameWsTrust13Policy = issuerPolicies
                 .FirstOrDefault(p => p.FindPolicyItem<SignedEncryptedSupportingTokens>()?.Policy.FindPolicyItem<UsernameToken>() != null && p.FindPolicyItem<Trust13>() != null);
 
+            if (usernameWsTrust13Policy is null)
+            {
+                throw new InvalidOperationException("Unable to find username trust policy");
+            }
+
             var issuerBindings = issuerWsdls
                 .Where(wsdl => wsdl.Bindings != null)
                 .SelectMany(wsdl => wsdl.Bindings)
@@ -192,14 +196,25 @@ namespace Data8.PowerPlatform.Dataverse.Client
             var usernameWsTrust13Binding = issuerBindings
                 .FirstOrDefault(b => b.PolicyReference.Uri == "#" + usernameWsTrust13Policy.Id);
 
+            if(usernameWsTrust13Binding is null)
+            {
+                throw new InvalidOperationException("Unable to find username trust binding");
+            }
+
             var issuerPorts = issuerWsdls
                 .Where(wsdl => wsdl.Services != null)
                 .SelectMany(wsdl => wsdl.Services)
                 .SelectMany(svc => svc.Ports)
                 .ToList();
 
+
             var usernameWsTrust13Port = issuerPorts
                 .FirstOrDefault(p => p.Binding == "tns:" + usernameWsTrust13Binding.Name);
+
+            if (usernameWsTrust13Port is null)
+            {
+                throw new InvalidOperationException("Unable to find username trust port");
+            }
 
             // Create the SOAP client to authenticate against the STS
             var client = new ClaimsBasedAuthClient(url, usernameWsTrust13Port.Address.Location);
@@ -220,14 +235,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// <inheritdoc cref="ServiceClient.MaxConnectionTimeout"/>
         public TimeSpan Timeout
         {
-            get
-            {
-                return _innerService.Timeout;
-            }
-            set
-            {
-                _innerService.Timeout = value;
-            }
+            get => _service.Timeout;
+            set => _service.Timeout = value;
         }
 
         /// <summary>
@@ -254,16 +263,16 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// <param name="assembly">The assembly to load the early-bound types from</param>
         public void EnableProxyTypes(Assembly assembly)
         {
-            _innerService.EnableProxyTypes(assembly);
+            _service.EnableProxyTypes(assembly);
         }
 
         private IDisposable StartScope()
         {
-            return new OrgServiceScope(_innerService, CallerId);
+            return new OrgServiceScope(_service, CallerId);
         }
 
         /// <inheritdoc/>
-        public virtual void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        public void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
         {
             using (StartScope())
             {
@@ -272,7 +281,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public virtual Guid Create(Entity entity)
+        public Guid Create(Entity entity)
         {
             using (StartScope())
             {
@@ -281,7 +290,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public virtual void Delete(string entityName, Guid id)
+        public void Delete(string entityName, Guid id)
         {
             using (StartScope())
             {
@@ -290,7 +299,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public virtual void Disassociate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        public void Disassociate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
         {
             using (StartScope())
             {
@@ -299,7 +308,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public virtual OrganizationResponse Execute(OrganizationRequest request)
+        public OrganizationResponse Execute(OrganizationRequest request)
         {
             using (StartScope())
             {
@@ -308,7 +317,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public virtual Entity Retrieve(string entityName, Guid id, ColumnSet columnSet)
+        public Entity Retrieve(string entityName, Guid id, ColumnSet columnSet)
         {
             using (StartScope())
             {
@@ -317,7 +326,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public virtual EntityCollection RetrieveMultiple(QueryBase query)
+        public EntityCollection RetrieveMultiple(QueryBase query)
         {
             using (StartScope())
             {
@@ -326,7 +335,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public virtual void Update(Entity entity)
+        public void Update(Entity entity)
         {
             using (StartScope())
             {
@@ -342,16 +351,20 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <inheritdoc/>
-        public Task<Guid> CreateAsync(Entity entity, CancellationToken cancellationToken)
+        public async Task<Guid> CreateAsync(Entity entity, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return CreateAsync(entity);
+            return await CreateAsync(entity);
         }
 
         /// <inheritdoc/>
-        public Task<Entity> CreateAndReturnAsync(Entity entity, CancellationToken cancellationToken)
+        public async Task<Entity> CreateAndReturnAsync(Entity entity, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            cancellationToken.ThrowIfCancellationRequested();
+            using (StartScope())
+            {
+                return await _service.CreateAndReturnAsync(entity, cancellationToken);
+            }
         }
 
         /// <inheritdoc/>
