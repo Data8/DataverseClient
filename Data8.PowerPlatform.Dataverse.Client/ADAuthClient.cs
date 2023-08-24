@@ -55,7 +55,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             _serializationSurrogate = new ProxySerializationSurrogate();
             Timeout = TimeSpan.FromSeconds(30);
 
-            if (!String.IsNullOrEmpty(username))
+            if (!string.IsNullOrEmpty(username))
             {
                 // Split username into domain + username
                 var domain = "";
@@ -109,7 +109,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
 #if NET7_0_OR_GREATER
             NetworkCredential cred;
 
-            if (String.IsNullOrEmpty(_username))
+            if (string.IsNullOrEmpty(_username))
                 cred = CredentialCache.DefaultNetworkCredentials;
             else
                 cred = new NetworkCredential(_username, _password, _domain);
@@ -134,7 +134,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             // Set up the SSPI context
             NSspi.Credentials.Credential cred;
 
-            if (String.IsNullOrEmpty(_username))
+            if (string.IsNullOrEmpty(_username))
                 cred = new NSspi.Credentials.CurrentCredential(NSspi.PackageNames.Negotiate, NSspi.Credentials.CredentialUse.Outbound);
             else
                 cred = new NSspi.Credentials.PasswordCredential(_domain, _username, _password, NSspi.PackageNames.Negotiate, NSspi.Credentials.CredentialUse.Outbound);
@@ -302,7 +302,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                         var serializer = new DataContractSerializer(typeof(OrganizationResponse), "ExecuteResult", Namespaces.Xrm2011Services);
                         serializer.SetSerializationSurrogateProvider(_serializationSurrogate);
 #else
-                        var serializer = new DataContractSerializer(typeof(OrganizationResponse), "ExecuteResult", Namespaces.Xrm2011Services, null, Int32.MaxValue, false, true, _serializationSurrogate);
+                        var serializer = new DataContractSerializer(typeof(OrganizationResponse), "ExecuteResult", Namespaces.Xrm2011Services, null, int.MaxValue, false, true, _serializationSurrogate);
 #endif
                         var response = (OrganizationResponse)serializer.ReadObject(bodyReader, true, new KnownTypesResolver());
 
@@ -448,7 +448,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                         var serializer = new DataContractSerializer(typeof(OrganizationResponse), "ExecuteResult", Namespaces.Xrm2011Services);
                         serializer.SetSerializationSurrogateProvider(_serializationSurrogate);
 #else
-                        var serializer = new DataContractSerializer(typeof(OrganizationResponse), "ExecuteResult", Namespaces.Xrm2011Services, null, Int32.MaxValue, false, true, _serializationSurrogate);
+                        var serializer = new DataContractSerializer(typeof(OrganizationResponse), "ExecuteResult", Namespaces.Xrm2011Services, null, int.MaxValue, false, true, _serializationSurrogate);
 #endif
                         var response = (OrganizationResponse)serializer.ReadObject(bodyReader, true, new KnownTypesResolver());
 
@@ -565,7 +565,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 var serializer = new DataContractSerializer(typeof(OrganizationRequest), "request", Namespaces.Xrm2011Services);
                 serializer.SetSerializationSurrogateProvider(_serializationSurrogate);
 #else
-                var serializer = new DataContractSerializer(typeof(OrganizationRequest), "request", Namespaces.Xrm2011Services, null, Int32.MaxValue, false, true, _serializationSurrogate);
+                var serializer = new DataContractSerializer(typeof(OrganizationRequest), "request", Namespaces.Xrm2011Services, null, int.MaxValue, false, true, _serializationSurrogate);
 #endif
 
                 serializer.WriteObject(writer, _request, new KnownTypesResolver());

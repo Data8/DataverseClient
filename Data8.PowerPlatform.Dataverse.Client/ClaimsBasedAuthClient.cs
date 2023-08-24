@@ -87,7 +87,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             foreach (var operation in serviceEndpoint.Contract.Operations)
             {
                 var operationBehavior = operation.Behaviors.Find<DataContractSerializerOperationBehavior>();
-                operationBehavior.MaxItemsInObjectGraph = Int32.MaxValue;
+                operationBehavior.MaxItemsInObjectGraph = int.MaxValue;
             }
 
             return serviceEndpoint;
@@ -128,12 +128,12 @@ namespace Data8.PowerPlatform.Dataverse.Client
             binding.Security.Message.EstablishSecurityContext = false;
 
             // Increase maximum allowed sizes to allow receiving large messages
-            binding.MaxReceivedMessageSize = Int32.MaxValue;
-            binding.MaxBufferPoolSize = Int32.MaxValue;
-            binding.ReaderQuotas.MaxStringContentLength = Int32.MaxValue;
-            binding.ReaderQuotas.MaxArrayLength = Int32.MaxValue;
-            binding.ReaderQuotas.MaxBytesPerRead = Int32.MaxValue;
-            binding.ReaderQuotas.MaxNameTableCharCount = Int32.MaxValue;
+            binding.MaxReceivedMessageSize = int.MaxValue;
+            binding.MaxBufferPoolSize = int.MaxValue;
+            binding.ReaderQuotas.MaxStringContentLength = int.MaxValue;
+            binding.ReaderQuotas.MaxArrayLength = int.MaxValue;
+            binding.ReaderQuotas.MaxBytesPerRead = int.MaxValue;
+            binding.ReaderQuotas.MaxNameTableCharCount = int.MaxValue;
 
             return binding;
         }
