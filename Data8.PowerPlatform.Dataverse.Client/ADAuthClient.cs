@@ -20,7 +20,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
-
 namespace Data8.PowerPlatform.Dataverse.Client
 {
     /// <summary>
