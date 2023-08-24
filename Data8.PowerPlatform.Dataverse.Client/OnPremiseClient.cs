@@ -65,8 +65,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
         private readonly List<Policy> _policies;
         private readonly Identity _identity;
 
-        private IInnerOrganizationService _innerService;
-        private IOrganizationServiceAsync _service;
+        private readonly IInnerOrganizationService _innerService;
+        private readonly IOrganizationServiceAsync _service;
 
         private static readonly string _sdkVersion;
         private static readonly int _sdkMajorVersion;
@@ -101,10 +101,21 @@ namespace Data8.PowerPlatform.Dataverse.Client
         {
         }
 
-        private OnPremiseClient(IInnerOrganizationService innerService, IOrganizationServiceAsync service)
+        private OnPremiseClient(
+            string url,
+            ClientCredentials credentials,
+            AuthenticationType authenticationType,
+            List<Policy> policies,
+            Identity identity)
         {
-            _innerService = innerService;
-            _service = service;
+            _url = url;
+            _credentials = credentials;
+            _authenticationType = authenticationType;
+            _policies = policies;
+            _identity = identity;
+
+            _innerService = GetInnerService();
+            _service = _innerService as IOrganizationServiceAsync ?? new OrgServiceAsyncWrapper(_innerService);
         }
 
         /// <summary>
@@ -155,7 +166,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
             _authenticationType = authenticationPolicy.Authentication;
 
-            if(_authenticationType == AuthenticationType.ActiveDirectory)
+            if (_authenticationType == AuthenticationType.ActiveDirectory)
             {
                 _identity = wsdl
                     .Where(w => w.Services != null)
@@ -170,6 +181,16 @@ namespace Data8.PowerPlatform.Dataverse.Client
             _innerService = GetInnerService();
             _innerService.Timeout = TimeSpan.FromMinutes(2);
             _service = _innerService as IOrganizationServiceAsync ?? new OrgServiceAsyncWrapper(_innerService);
+        }
+
+        /// <inheritdoc cref="ServiceClient.CallerId"/>
+        public Guid CallerId { get; set; }
+
+        /// <inheritdoc cref="ServiceClient.MaxConnectionTimeout"/>
+        public TimeSpan Timeout
+        {
+            get => _innerService.Timeout;
+            set => _innerService.Timeout = value;
         }
 
         private IInnerOrganizationService GetInnerService()
@@ -193,12 +214,16 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// <returns></returns>
         public OnPremiseClient Clone()
         {
-            var innerService = GetInnerService();
-            innerService.Timeout = TimeSpan.FromMinutes(2);
-
-            var service = innerService as IOrganizationServiceAsync ?? new OrgServiceAsyncWrapper(innerService);
-
-            return new OnPremiseClient(innerService, service);
+            return new OnPremiseClient(
+                _url,
+                _credentials,
+                _authenticationType,
+                _policies,
+                _identity)
+            {
+                Timeout = Timeout,
+                CallerId = CallerId
+            };
         }
 
         private ClaimsBasedAuthClient ConnectFederated(string url, ClientCredentials credentials, List<Policy> policies)
@@ -238,7 +263,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             var usernameWsTrust13Binding = issuerBindings
                 .FirstOrDefault(b => b.PolicyReference.Uri == "#" + usernameWsTrust13Policy.Id);
 
-            if(usernameWsTrust13Binding == null)
+            if (usernameWsTrust13Binding == null)
             {
                 throw new InvalidOperationException("Unable to find username token binding");
             }
@@ -268,16 +293,6 @@ namespace Data8.PowerPlatform.Dataverse.Client
         {
             var client = new ADAuthClient(url, credentials.UserName.UserName, credentials.UserName.Password, identity);
             return client;
-        }
-
-        /// <inheritdoc cref="ServiceClient.CallerId"/>
-        public Guid CallerId { get; set; }
-
-        /// <inheritdoc cref="ServiceClient.MaxConnectionTimeout"/>
-        public TimeSpan Timeout
-        {
-            get => _innerService.Timeout;
-            set => _innerService.Timeout = value;
         }
 
         /// <summary>

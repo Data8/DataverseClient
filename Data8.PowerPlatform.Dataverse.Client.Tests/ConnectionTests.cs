@@ -51,6 +51,30 @@ namespace Data8.PowerPlatform.Dataverse.Client.Tests
         }
 
         [Fact]
+        public void CloneACloneTest()
+        {
+            var adUrl = Environment.GetEnvironmentVariable("AD_URL");
+            var adUsername = Environment.GetEnvironmentVariable("AD_USERNAME");
+            var adPassword = Environment.GetEnvironmentVariable("AD_PASSWORD");
+
+            var client = new OnPremiseClient(adUrl, adUsername, adPassword);
+            var resp = (WhoAmIResponse)client.Execute(new WhoAmIRequest());
+
+            var newClient = client.Clone();
+
+            client = null;
+
+            var resp2 = (WhoAmIResponse)newClient.Execute(new WhoAmIRequest());
+
+            Assert.Equal(resp.UserId, resp2.UserId);
+
+            var newClient2 = newClient.Clone();
+            var resp3 = (WhoAmIResponse)newClient2.Execute(new WhoAmIRequest());
+
+            Assert.Equal(resp.UserId, resp3.UserId);
+        }
+
+        [Fact]
         public void CloneTestInTasks()
         {
             var adUrl = Environment.GetEnvironmentVariable("AD_URL");
