@@ -7,7 +7,7 @@ namespace Data8.PowerPlatform.Dataverse.Client.ADAuthHelpers
     {
         public RequestSecurityTokenResponse(string context, byte[] token)
         {
-            if (String.IsNullOrEmpty(context))
+            if (string.IsNullOrEmpty(context))
                 throw new ArgumentNullException(nameof(context));
 
             if (token == null)
