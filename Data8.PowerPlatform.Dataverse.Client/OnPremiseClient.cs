@@ -14,6 +14,7 @@ using Microsoft.PowerPlatform.Dataverse.Client;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Client;
 using Microsoft.Xrm.Sdk.Query;
+using AuthenticationType = Data8.PowerPlatform.Dataverse.Client.Wsdl.AuthenticationType;
 
 namespace Data8.PowerPlatform.Dataverse.Client
 {
@@ -57,7 +58,15 @@ namespace Data8.PowerPlatform.Dataverse.Client
             }
         }
 
-        private readonly IInnerOrganizationService _service;
+        private readonly string _url;
+        private readonly ClientCredentials _credentials;
+
+        private readonly AuthenticationType _authenticationType;
+        private readonly List<Policy> _policies;
+        private readonly Identity _identity;
+
+        private readonly IInnerOrganizationService _innerService;
+        private readonly IOrganizationServiceAsync _service;
 
         private static readonly string _sdkVersion;
         private static readonly int _sdkMajorVersion;
@@ -92,6 +101,23 @@ namespace Data8.PowerPlatform.Dataverse.Client
         {
         }
 
+        private OnPremiseClient(
+            string url,
+            ClientCredentials credentials,
+            AuthenticationType authenticationType,
+            List<Policy> policies,
+            Identity identity)
+        {
+            _url = url;
+            _credentials = credentials;
+            _authenticationType = authenticationType;
+            _policies = policies;
+            _identity = identity;
+
+            _innerService = GetInnerService();
+            _service = _innerService as IOrganizationServiceAsync ?? new OrgServiceAsyncWrapper(_innerService);
+        }
+
         /// <summary>
         /// Creates a new <see cref="OnPremiseClient"/>
         /// </summary>
@@ -118,10 +144,13 @@ namespace Data8.PowerPlatform.Dataverse.Client
             if (!new Uri(url).Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
                 throw new NotSupportedException("Only https connections are supported");
 
+            _url = url;
+            _credentials = credentials;
+
             // Get the WSDL of the target to find the authentication type and the URL of the STS for Federated auth
             var wsdl = WsdlLoader.Load(url + "?wsdl&sdkversion=" + _sdkMajorVersion).ToList();
 
-            var policies = wsdl
+            _policies = wsdl
                 .Where(w => w.Policies != null)
                 .SelectMany(w => w.Policies)
                 .ToList();
@@ -131,9 +160,13 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 .FirstOrDefault(t => t != null);
 
             if (authenticationPolicy == null)
+            {
                 throw new InvalidOperationException("Unable to find authentication policy");
+            }
 
-            switch (authenticationPolicy.Authentication)
+            _authenticationType = authenticationPolicy.Authentication;
+
+            if (_authenticationType == AuthenticationType.ActiveDirectory)
             {
                 case Wsdl.AuthenticationType.ActiveDirectory:
                     var identity = wsdl
@@ -148,15 +181,47 @@ namespace Data8.PowerPlatform.Dataverse.Client
                     _service = ConnectAD(url, credentials, identity?.Upn ?? identity?.Spn);
                     break;
 
-                case Wsdl.AuthenticationType.Federation:
-                    _service = ConnectFederated(url, credentials, policies);
-                    break;
+        /// <inheritdoc cref="ServiceClient.CallerId"/>
+        public Guid CallerId { get; set; }
+
+        /// <inheritdoc cref="ServiceClient.MaxConnectionTimeout"/>
+        public TimeSpan Timeout
+        {
+            get => _innerService.Timeout;
+            set => _innerService.Timeout = value;
+        }
+
+        private IInnerOrganizationService GetInnerService()
+        {
+            switch (_authenticationType)
+            {
+                case AuthenticationType.ActiveDirectory:
+                    return ConnectAD(_url, _credentials, _identity?.Upn ?? _identity?.Spn);
+
+                case AuthenticationType.Federation:
+                    return ConnectFederated(_url, _credentials, _policies);
 
                 default:
-                    throw new NotSupportedException("Unknown authentication policy " + authenticationPolicy.Authentication);
+                    throw new NotSupportedException("Unknown authentication policy " + _authenticationType);
             }
+        }
 
-            Timeout = TimeSpan.FromMinutes(2);
+        /// <summary>
+        /// Clone the current <see cref="OnPremiseClient"/> with the same credentials
+        /// </summary>
+        /// <returns></returns>
+        public OnPremiseClient Clone()
+        {
+            return new OnPremiseClient(
+                _url,
+                _credentials,
+                _authenticationType,
+                _policies,
+                _identity)
+            {
+                Timeout = Timeout,
+                CallerId = CallerId
+            };
         }
 
         private ClaimsBasedAuthClient ConnectFederated(string url, ClientCredentials credentials, List<Policy> policies)
@@ -165,12 +230,12 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 .Select(p => p.FindPolicyItem<EndorsingSupportingTokens>())
                 .FirstOrDefault(t => t != null);
 
-            if (tokenEndpoint is null)
+            if (tokenEndpoint == null)
             {
                 throw new InvalidOperationException("Unable to find token endpoint");
             }
 
-            var issuer = tokenEndpoint.Policy.FindPolicyItem<Wsdl.IssuedToken>();
+            var issuer = tokenEndpoint.Policy.FindPolicyItem<IssuedToken>();
             var issuerMetadataEndpoint = issuer.Issuer.Metadata.Metadata.MetadataSection.MetadataReference.Address;
 
             // Now get the WSDL of the STS to get the username and password endpoint
@@ -182,6 +247,11 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
             var usernameWsTrust13Policy = issuerPolicies
                 .FirstOrDefault(p => p.FindPolicyItem<SignedEncryptedSupportingTokens>()?.Policy.FindPolicyItem<UsernameToken>() != null && p.FindPolicyItem<Trust13>() != null);
+
+            if (usernameWsTrust13Policy == null)
+            {
+                throw new InvalidOperationException("Unable to find username token endpoint");
+            }
 
             if (usernameWsTrust13Policy is null)
             {
@@ -195,6 +265,11 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
             var usernameWsTrust13Binding = issuerBindings
                 .FirstOrDefault(b => b.PolicyReference.Uri == "#" + usernameWsTrust13Policy.Id);
+
+            if (usernameWsTrust13Binding == null)
+            {
+                throw new InvalidOperationException("Unable to find username token binding");
+            }
 
             if(usernameWsTrust13Binding is null)
             {
@@ -210,6 +285,11 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
             var usernameWsTrust13Port = issuerPorts
                 .FirstOrDefault(p => p.Binding == "tns:" + usernameWsTrust13Binding.Name);
+
+            if (usernameWsTrust13Port == null)
+            {
+                throw new InvalidOperationException("Unable to find username token port");
+            }
 
             if (usernameWsTrust13Port is null)
             {
@@ -237,6 +317,24 @@ namespace Data8.PowerPlatform.Dataverse.Client
         {
             get => _service.Timeout;
             set => _service.Timeout = value;
+        }
+
+            set
+            {
+                _innerService.Timeout = value;
+            }
+        }
+
+            set
+            {
+                _innerService.Timeout = value;
+            }
+        }
+
+            set
+            {
+                _innerService.Timeout = value;
+            }
         }
 
         /// <summary>
