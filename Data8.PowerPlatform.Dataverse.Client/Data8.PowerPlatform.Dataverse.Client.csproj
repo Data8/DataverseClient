@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net462;net472;net48;netcoreapp3.1;net7.0;net8.0</TargetFrameworks>
+    <TargetFrameworks>net462;net6.0;net7.0</TargetFrameworks>
     <Authors>MarkMpn,Data8 Ltd</Authors>
     <Copyright>Copyright © 2021 Data8 Limited</Copyright>
     <RepositoryUrl>https://github.com/Data8/DataverseClient</RepositoryUrl>
@@ -44,7 +44,7 @@ void CreateRecord(IOrganizationService svc)
     <PackageIcon>Data8.png</PackageIcon>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'net472' or '$(TargetFramework)' == 'net48' or '$(TargetFramework)' == 'netcoreapp3.1'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'net6.0'">
     <Compile Include="..\NSspi\NSspi\ByteWriter.cs" Link="NSspi\ByteWriter.cs" />
     <Compile Include="..\NSspi\NSspi\Contexts\ClientContext.cs" Link="NSspi\Contexts\ClientContext.cs" />
     <Compile Include="..\NSspi\NSspi\Contexts\Context.cs" Link="NSspi\Contexts\Context.cs" />
@@ -81,12 +81,12 @@ void CreateRecord(IOrganizationService svc)
 
   <ItemGroup>
     <PackageReference Include="Microsoft.IdentityModel.Protocols.WsTrust" Version="6.8.0" />
-    <PackageReference Include="Microsoft.PowerPlatform.Dataverse.Client" Version="1.0.23" />
-	<PackageReference Include="System.ServiceModel.Security" Version="4.10.0" Aliases="SSS" />
-    <PackageReference Include="System.ServiceModel.Federation" Version="4.10.0" />
+    <PackageReference Include="Microsoft.PowerPlatform.Dataverse.Client" Version="1.1.14" />
+	<PackageReference Include="System.ServiceModel.Security" Version="4.10.2" Aliases="SSS" />
+    <PackageReference Include="System.ServiceModel.Federation" Version="4.10.2" />
   </ItemGroup>
 
-	<ItemGroup Condition="'$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'net472' or '$(TargetFramework)' == 'net48'">
+	<ItemGroup Condition="'$(TargetFramework)' == 'net462'">
 		<Reference Include="System.ServiceModel" />
 	</ItemGroup>
 

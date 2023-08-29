@@ -22,7 +22,6 @@ using SecurityKeyEntropyMode = SSS.System.ServiceModel.Security.SecurityKeyEntro
 using WSFederationHttpBinding = System.ServiceModel.Federation.WSFederationHttpBinding;
 using SecurityBindingElement = System.ServiceModel.Channels.SecurityBindingElement;
 using SecurityKeyEntropyMode = System.ServiceModel.Security.SecurityKeyEntropyMode;
-
 #endif
 
 namespace Data8.PowerPlatform.Dataverse.Client

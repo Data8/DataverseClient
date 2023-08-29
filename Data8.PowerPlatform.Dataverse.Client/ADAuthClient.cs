@@ -162,12 +162,12 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 if (!(resp is RequestSecurityTokenResponse r)) continue;
 
 #if NET7_0_OR_GREATER
-                    token = context.GetOutgoingBlob(r.BinaryExchange.Token, out state);
+                token = context.GetOutgoingBlob(r.BinaryExchange.Token, out state);
 
-                    if (state != NegotiateAuthenticationStatusCode.Completed && state != NegotiateAuthenticationStatusCode.ContinueNeeded)
-                    {
-                        throw new ApplicationException("Error authenticating with the server: " + state);
-                    }
+                if (state != NegotiateAuthenticationStatusCode.Completed && state != NegotiateAuthenticationStatusCode.ContinueNeeded)
+                {
+                    throw new ApplicationException("Error authenticating with the server: " + state);
+                }
 #else
                 state = context.Init(r.BinaryExchange.Token, out token);
 
@@ -388,8 +388,6 @@ namespace Data8.PowerPlatform.Dataverse.Client
             };
             Execute(request);
         }
-
-
 
         /// <inheritdoc/>
         public async Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request)
