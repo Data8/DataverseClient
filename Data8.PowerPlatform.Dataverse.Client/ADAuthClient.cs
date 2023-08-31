@@ -25,7 +25,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
     /// <summary>
     /// Inner client to set up the SOAP channel using WS-Trust with SSPI auth
     /// </summary>
-    class ADAuthClient : IOrganizationServiceAsync2, IInnerOrganizationService
+    class ADAuthClient : IOrganizationServiceAsync2, IInnerOrganizationService, ICloneable
     {
         private readonly string _url;
         private readonly string _domain;
@@ -599,6 +599,16 @@ namespace Data8.PowerPlatform.Dataverse.Client
         {
             var request = new DeleteRequest { Target = new EntityReference(entityName, id) };
             await ExecuteAsync(request, cancellationToken);
+        }
+
+        public object Clone()
+        {
+            return new ADAuthClient(_url, _username != null ? $"{_domain}\\{_username}" : null, _password, _upn)
+            {
+                _proofToken = _proofToken,
+                _securityContextToken = _securityContextToken,
+                _tokenExpires = _tokenExpires
+            };
         }
 
         private class ExecuteRequestWriter : BodyWriter

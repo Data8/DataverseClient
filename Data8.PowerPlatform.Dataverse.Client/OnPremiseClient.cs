@@ -105,7 +105,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
             ClientCredentials credentials,
             AuthenticationType authenticationType,
             List<Policy> policies,
-            Identity identity)
+            Identity identity,
+            IInnerOrganizationService innerService)
         {
             _url = url;
             _credentials = credentials;
@@ -113,7 +114,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             _policies = policies;
             _identity = identity;
 
-            _service = GetInnerService();
+            _service = innerService ?? GetInnerService();
         }
 
         /// <summary>
@@ -216,7 +217,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 _credentials,
                 _authenticationType,
                 _policies,
-                _identity)
+                _identity,
+                (_service as ICloneable)?.Clone() as IInnerOrganizationService)
             {
                 Timeout = Timeout,
                 CallerId = CallerId
