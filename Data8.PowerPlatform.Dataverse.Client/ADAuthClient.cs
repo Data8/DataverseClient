@@ -428,8 +428,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
             using (var xmlWriter = XmlDictionaryWriter.CreateDictionaryWriter(xmlTextWriter))
             {
                 message.WriteMessage(xmlWriter);
-                await xmlWriter.WriteEndDocumentAsync();
-                await xmlWriter.FlushAsync();
+                xmlWriter.WriteEndDocument();//async overload is not implemented
+                xmlWriter.Flush();//async overload is not implemented
             }
             cancellationToken.ThrowIfCancellationRequested();
 
