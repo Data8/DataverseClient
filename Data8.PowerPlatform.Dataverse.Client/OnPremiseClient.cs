@@ -33,7 +33,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         {
             private readonly OperationContextScope _scope;
 
-            public OrgServiceScope(IInnerOrganizationService svc, Guid callerId)
+            public OrgServiceScope(IOrganizationServiceAsync2 svc, Guid callerId)
             {
                 if (svc is ClaimsBasedAuthClient cbac)
                 {
@@ -65,8 +65,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         private readonly List<Policy> _policies;
         private readonly Identity _identity;
 
-        private readonly IInnerOrganizationService _innerService;
-        private readonly IOrganizationServiceAsync _service;
+        private readonly IInnerOrganizationService _service;
 
         private static readonly string _sdkVersion;
         private static readonly int _sdkMajorVersion;
@@ -106,7 +105,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
             ClientCredentials credentials,
             AuthenticationType authenticationType,
             List<Policy> policies,
-            Identity identity)
+            Identity identity,
+            IInnerOrganizationService innerService)
         {
             _url = url;
             _credentials = credentials;
@@ -114,8 +114,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             _policies = policies;
             _identity = identity;
 
-            _innerService = GetInnerService();
-            _service = _innerService as IOrganizationServiceAsync ?? new OrgServiceAsyncWrapper(_innerService);
+            _service = innerService ?? GetInnerService();
         }
 
         /// <summary>
@@ -178,9 +177,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
                     .Identity;
             }
 
-            _innerService = GetInnerService();
-            _innerService.Timeout = TimeSpan.FromMinutes(2);
-            _service = _innerService as IOrganizationServiceAsync ?? new OrgServiceAsyncWrapper(_innerService);
+            _service = GetInnerService();
+            _service.Timeout = TimeSpan.FromMinutes(2);
         }
 
         /// <inheritdoc cref="ServiceClient.CallerId"/>
@@ -189,8 +187,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// <inheritdoc cref="ServiceClient.MaxConnectionTimeout"/>
         public TimeSpan Timeout
         {
-            get => _innerService.Timeout;
-            set => _innerService.Timeout = value;
+            get => _service.Timeout;
+            set => _service.Timeout = value;
         }
 
         private IInnerOrganizationService GetInnerService()
@@ -209,7 +207,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
         }
 
         /// <summary>
-        /// Clone the current <see cref="OnPremiseClient"/> with the same credentials
+        /// Clone the current <see cref="OnPremiseClient"/> with the same settings (Credentials, Timeout, CallerId)
         /// </summary>
         /// <returns></returns>
         public OnPremiseClient Clone()
@@ -219,7 +217,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 _credentials,
                 _authenticationType,
                 _policies,
-                _identity)
+                _identity,
+                (_service as ICloneable)?.Clone() as IInnerOrganizationService)
             {
                 Timeout = Timeout,
                 CallerId = CallerId
@@ -319,12 +318,12 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// <param name="assembly">The assembly to load the early-bound types from</param>
         public void EnableProxyTypes(Assembly assembly)
         {
-            _innerService.EnableProxyTypes(assembly);
+            _service.EnableProxyTypes(assembly);
         }
 
         private IDisposable StartScope()
         {
-            return new OrgServiceScope(_innerService, CallerId);
+            return new OrgServiceScope(_service, CallerId);
         }
 
         /// <inheritdoc/>

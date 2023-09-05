@@ -8,21 +8,20 @@ using System.ServiceModel;
 using System.ServiceModel.Federation;
 using System.Reflection;
 using System.ServiceModel.Description;
+using System.Threading;
 using Binding = System.ServiceModel.Channels.Binding;
 using Microsoft.PowerPlatform.Dataverse.Client;
 using Microsoft.Xrm.Sdk;
 using System.Threading.Tasks;
 using Microsoft.Xrm.Sdk.Query;
 
-#if NET462_OR_GREATER
-using WSFederationHttpBinding = System.ServiceModel.Federation.WSFederationHttpBinding;
-
-using SecurityBindingElement = System.ServiceModel.Channels.SecurityBindingElement;
-using SecurityKeyEntropyMode = System.ServiceModel.Security.SecurityKeyEntropyMode;
-
-#else
+#if NETCOREAPP
 using SecurityBindingElement = SSS.System.ServiceModel.Channels.SecurityBindingElement;
 using SecurityKeyEntropyMode = SSS.System.ServiceModel.Security.SecurityKeyEntropyMode;
+#else
+using WSFederationHttpBinding = System.ServiceModel.Federation.WSFederationHttpBinding;
+using SecurityBindingElement = System.ServiceModel.Channels.SecurityBindingElement;
+using SecurityKeyEntropyMode = System.ServiceModel.Security.SecurityKeyEntropyMode;
 #endif
 
 namespace Data8.PowerPlatform.Dataverse.Client
@@ -30,11 +29,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
     /// <summary>
     /// Inner client to set up the SOAP channel using WS-Trust
     /// </summary>
-#if NETCOREAPP
-    class ClaimsBasedAuthClient : ClientBase<IOrganizationServiceAsync>, IOrganizationServiceAsync, IInnerOrganizationService
-#else
-    class ClaimsBasedAuthClient : ClientBase<IOrganizationService>, IOrganizationService, IInnerOrganizationService
-#endif
+    class ClaimsBasedAuthClient : ClientBase<IOrganizationServiceAsync2>, IOrganizationServiceAsync2, IInnerOrganizationService
     {
         private readonly ProxySerializationSurrogate _serializationSurrogate;
 
@@ -95,8 +90,8 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
         public TimeSpan Timeout
         {
-            get { return InnerChannel.OperationTimeout; }
-            set { InnerChannel.OperationTimeout = value; }
+            get => InnerChannel.OperationTimeout;
+            set => InnerChannel.OperationTimeout = value;
         }
 
         public void EnableProxyTypes(Assembly assembly)
@@ -138,47 +133,91 @@ namespace Data8.PowerPlatform.Dataverse.Client
             return binding;
         }
 
-#if NETCOREAPP
-        public Task<Guid> CreateAsync(Entity entity)
+        public async Task<Guid> CreateAsync(Entity entity)
         {
-            return Channel.CreateAsync(entity);
+            return await CreateAsync(entity, CancellationToken.None).ConfigureAwait(false);
         }
 
-        public Task<Entity> RetrieveAsync(string entityName, Guid id, ColumnSet columnSet)
+        public async Task<Guid> CreateAsync(Entity entity, CancellationToken cancelationToken)
         {
-            return Channel.RetrieveAsync(entityName, id, columnSet);
+            return await Channel.CreateAsync(entity);
         }
 
-        public Task UpdateAsync(Entity entity)
+        public async Task<Entity> CreateAndReturnAsync(Entity entity, CancellationToken cancellationToken)
         {
-            return Channel.UpdateAsync(entity);
+            var createResponse = await CreateAsync(entity, cancellationToken).ConfigureAwait(false);
+            return await RetrieveAsync(entity.LogicalName, createResponse, new ColumnSet(true), cancellationToken).ConfigureAwait(false);
         }
 
-        public Task DeleteAsync(string entityName, Guid id)
+        public async Task<Entity> RetrieveAsync(string entityName, Guid id, ColumnSet columnSet)
         {
-            return Channel.DeleteAsync(entityName, id);
+            return await RetrieveAsync(entityName, id, columnSet, CancellationToken.None).ConfigureAwait(false);
         }
 
-        public Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request)
+        public async Task<Entity> RetrieveAsync(string entityName, Guid id, ColumnSet columnSet, CancellationToken cancellationToken)
         {
-            return Channel.ExecuteAsync(request);
+            return await Channel.RetrieveAsync(entityName, id, columnSet);
         }
 
-        public Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        public async Task UpdateAsync(Entity entity)
         {
-            return Channel.AssociateAsync(entityName, entityId, relationship, relatedEntities);
+            await UpdateAsync(entity, CancellationToken.None).ConfigureAwait(false);
         }
 
-        public Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        public async Task UpdateAsync(Entity entity, CancellationToken cancelationToken)
         {
-            return Channel.DisassociateAsync(entityName, entityId, relationship, relatedEntities);
+            await Channel.UpdateAsync(entity);
         }
 
-        public Task<EntityCollection> RetrieveMultipleAsync(QueryBase query)
+        public async Task DeleteAsync(string entityName, Guid id)
         {
-            return Channel.RetrieveMultipleAsync(query);
+            await DeleteAsync(entityName, id, CancellationToken.None).ConfigureAwait(false);
         }
-#endif
+
+        public async Task DeleteAsync(string entityName, Guid id, CancellationToken cancelationToken)
+        {
+            await Channel.DeleteAsync(entityName, id);
+        }
+
+        public async Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request)
+        {
+            return await ExecuteAsync(request, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        public async Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request, CancellationToken cancelationToken)
+        {
+            return await Channel.ExecuteAsync(request);
+        }
+
+        public async Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            await AssociateAsync(entityName, entityId, relationship, relatedEntities, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        public async Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities, CancellationToken cancelationToken)
+        {
+            await Channel.AssociateAsync(entityName, entityId, relationship, relatedEntities);
+        }
+
+        public async Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
+        {
+            await DisassociateAsync(entityName, entityId, relationship, relatedEntities, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        public async Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities, CancellationToken cancelationToken)
+        {
+            await Channel.DisassociateAsync(entityName, entityId, relationship, relatedEntities);
+        }
+
+        public async Task<EntityCollection> RetrieveMultipleAsync(QueryBase query)
+        {
+            return await RetrieveMultipleAsync(query, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        public async Task<EntityCollection> RetrieveMultipleAsync(QueryBase query, CancellationToken cancellationToken)
+        {
+            return await Channel.RetrieveMultipleAsync(query);
+        }
 
         public Guid Create(Entity entity)
         {

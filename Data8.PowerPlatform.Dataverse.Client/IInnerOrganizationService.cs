@@ -1,14 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Xrm.Sdk;
+using Microsoft.PowerPlatform.Dataverse.Client;
 
 namespace Data8.PowerPlatform.Dataverse.Client
 {
-    internal interface IInnerOrganizationService : IOrganizationService
+    internal interface IInnerOrganizationService : IOrganizationServiceAsync2
     {
         void EnableProxyTypes(Assembly assembly);
 
