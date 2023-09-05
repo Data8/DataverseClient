@@ -5,7 +5,9 @@
     <Authors>MarkMpn,Data8 Ltd</Authors>
     <Copyright>Copyright © 2021 Data8 Limited</Copyright>
     <RepositoryUrl>https://github.com/Data8/DataverseClient</RepositoryUrl>
-    <PackageReleaseNotes>Added support for early bound types and async calls</PackageReleaseNotes>
+    <PackageReleaseNotes>Added support for Clone method
+Updated to latest Microsoft.PowerPlatform.Dataverse.Client package
+Dropped support for .NET Core 3.1</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/Data8/DataverseClient</PackageProjectUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 	  <Description>Provides a WS-Trust compatible client for connecting to on-premise IFD instances of Dynamics 365 from .NET Core.
