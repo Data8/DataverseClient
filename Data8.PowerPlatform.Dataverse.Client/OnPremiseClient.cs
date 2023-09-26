@@ -191,6 +191,11 @@ namespace Data8.PowerPlatform.Dataverse.Client
             set => _service.Timeout = value;
         }
 
+        /// <summary>
+        /// The type of authentication used to connect to the organization service
+        /// </summary>
+        public AuthenticationType AuthenticationType => _authenticationType;
+
         private IInnerOrganizationService GetInnerService()
         {
             switch (_authenticationType)
