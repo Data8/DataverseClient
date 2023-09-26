@@ -4,6 +4,7 @@ using Microsoft.Crm.Sdk.Messages;
 using Microsoft.Xrm.Sdk;
 using Xunit;
 using Xunit.Abstractions;
+using AuthenticationType = Data8.PowerPlatform.Dataverse.Client.Wsdl.AuthenticationType;
 
 namespace Data8.PowerPlatform.Dataverse.Client.Tests
 {
@@ -32,6 +33,7 @@ namespace Data8.PowerPlatform.Dataverse.Client.Tests
         public void WhoAmIRequestTest()
         {
             var client = new OnPremiseClient(AdUrl, AdUsername, AdPassword);
+            Assert.Equal(AuthenticationType.ActiveDirectory, client.AuthenticationType);
             var response = client.Execute(new WhoAmIRequest()) as WhoAmIResponse;
 
             Assert.NotNull(response);
@@ -42,6 +44,7 @@ namespace Data8.PowerPlatform.Dataverse.Client.Tests
         public void CloneTest()
         {
             var client = new OnPremiseClient(AdUrl, AdUsername, AdPassword);
+            Assert.Equal(AuthenticationType.ActiveDirectory, client.AuthenticationType);
             var response1 = client.Execute(new WhoAmIRequest()) as WhoAmIResponse;
             var newClient = client.Clone();
             client = null;
@@ -56,6 +59,7 @@ namespace Data8.PowerPlatform.Dataverse.Client.Tests
         public void CloneACloneTest()
         {
             var client1 = new OnPremiseClient(AdUrl, AdUsername, AdPassword);
+            Assert.Equal(AuthenticationType.ActiveDirectory, client1.AuthenticationType);
             var response1 = client1.Execute(new WhoAmIRequest()) as WhoAmIResponse;
 
             var client2 = client1.Clone();
@@ -77,6 +81,7 @@ namespace Data8.PowerPlatform.Dataverse.Client.Tests
         public void CloneTestInTasks()
         {
             var client = new OnPremiseClient(AdUrl, AdUsername, AdPassword);
+            Assert.Equal(AuthenticationType.ActiveDirectory, client.AuthenticationType);
             var response1 = client.Execute(new WhoAmIRequest()) as WhoAmIResponse;
 
             Assert.NotNull(response1);
@@ -138,6 +143,7 @@ namespace Data8.PowerPlatform.Dataverse.Client.Tests
         public async Task WhoAmIRequestAsyncTest()
         {
             var client = new OnPremiseClient(AdUrl, AdUsername, AdPassword);
+            Assert.Equal(AuthenticationType.ActiveDirectory, client.AuthenticationType);
             var response = (await client.ExecuteAsync(new WhoAmIRequest())) as WhoAmIResponse;
 
             Assert.NotNull(response);
@@ -154,6 +160,7 @@ namespace Data8.PowerPlatform.Dataverse.Client.Tests
             var columnValue = Environment.GetEnvironmentVariable("AD_COLUMN_VALUE") ?? throw new Exception("AD_COLUMN_VALUE environment variable is not set");
 
             var client = new OnPremiseClient(AdUrl, AdUsername, AdPassword);
+            Assert.Equal(AuthenticationType.ActiveDirectory, client.AuthenticationType);
 
             var tasks = new Task[10];
 

@@ -29,7 +29,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
     /// <summary>
     /// Inner client to set up the SOAP channel using WS-Trust
     /// </summary>
-    class ClaimsBasedAuthClient : ClientBase<IOrganizationServiceAsync2>, IOrganizationServiceAsync2, IInnerOrganizationService
+    class ClaimsBasedAuthClient : ClientBase<IOrganizationService>, IOrganizationServiceAsync2, IInnerOrganizationService
     {
         private readonly ProxySerializationSurrogate _serializationSurrogate;
 
@@ -140,7 +140,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
         public async Task<Guid> CreateAsync(Entity entity, CancellationToken cancelationToken)
         {
-            return await Channel.CreateAsync(entity);
+            return await Task.Run(() => Create(entity), cancelationToken).ConfigureAwait(false);
         }
 
         public async Task<Entity> CreateAndReturnAsync(Entity entity, CancellationToken cancellationToken)
@@ -156,7 +156,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
         public async Task<Entity> RetrieveAsync(string entityName, Guid id, ColumnSet columnSet, CancellationToken cancellationToken)
         {
-            return await Channel.RetrieveAsync(entityName, id, columnSet);
+            return await Task.Run(() => Retrieve(entityName, id, columnSet), cancellationToken).ConfigureAwait(false);
         }
 
         public async Task UpdateAsync(Entity entity)
@@ -166,7 +166,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
         public async Task UpdateAsync(Entity entity, CancellationToken cancelationToken)
         {
-            await Channel.UpdateAsync(entity);
+            await Task.Run(() => Update(entity), cancelationToken).ConfigureAwait(false);
         }
 
         public async Task DeleteAsync(string entityName, Guid id)
@@ -176,7 +176,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
         public async Task DeleteAsync(string entityName, Guid id, CancellationToken cancelationToken)
         {
-            await Channel.DeleteAsync(entityName, id);
+            await Task.Run(() => Delete(entityName, id), cancelationToken).ConfigureAwait(false);
         }
 
         public async Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request)
@@ -186,7 +186,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
         public async Task<OrganizationResponse> ExecuteAsync(OrganizationRequest request, CancellationToken cancelationToken)
         {
-            return await Channel.ExecuteAsync(request);
+            return await Task.Run(() => Execute(request), cancelationToken).ConfigureAwait(false);
         }
 
         public async Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
@@ -196,7 +196,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
         public async Task AssociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities, CancellationToken cancelationToken)
         {
-            await Channel.AssociateAsync(entityName, entityId, relationship, relatedEntities);
+            await Task.Run(() => Associate(entityName, entityId, relationship, relatedEntities), cancelationToken).ConfigureAwait(false);
         }
 
         public async Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities)
@@ -206,7 +206,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
         public async Task DisassociateAsync(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities, CancellationToken cancelationToken)
         {
-            await Channel.DisassociateAsync(entityName, entityId, relationship, relatedEntities);
+            await Task.Run(() => Disassociate(entityName, entityId, relationship, relatedEntities), cancelationToken).ConfigureAwait(false);
         }
 
         public async Task<EntityCollection> RetrieveMultipleAsync(QueryBase query)
@@ -216,7 +216,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
 
         public async Task<EntityCollection> RetrieveMultipleAsync(QueryBase query, CancellationToken cancellationToken)
         {
-            return await Channel.RetrieveMultipleAsync(query);
+            return await Task.Run(() => RetrieveMultiple(query), cancellationToken).ConfigureAwait(false);
         }
 
         public Guid Create(Entity entity)
