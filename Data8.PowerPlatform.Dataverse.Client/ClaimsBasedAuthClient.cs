@@ -1,9 +1,4 @@
-﻿// Microsoft.Xrm.Sdk now includes various WCF-related classes with the same namespaces & names as in the
-// System.ServiceModel.Security package. That package is now referenced with the alias SSS so we can specify
-// which version we want to use.
-extern alias SSS;
-
-using System;
+﻿using System;
 using System.ServiceModel;
 using System.ServiceModel.Federation;
 using System.Reflection;
@@ -15,14 +10,11 @@ using Microsoft.Xrm.Sdk;
 using System.Threading.Tasks;
 using Microsoft.Xrm.Sdk.Query;
 
-#if NETCOREAPP
-using SecurityBindingElement = SSS.System.ServiceModel.Channels.SecurityBindingElement;
-using SecurityKeyEntropyMode = SSS.System.ServiceModel.Security.SecurityKeyEntropyMode;
-#else
+#if !NETCOREAPP
 using WSFederationHttpBinding = System.ServiceModel.Federation.WSFederationHttpBinding;
+#endif
 using SecurityBindingElement = System.ServiceModel.Channels.SecurityBindingElement;
 using SecurityKeyEntropyMode = System.ServiceModel.Security.SecurityKeyEntropyMode;
-#endif
 
 namespace Data8.PowerPlatform.Dataverse.Client
 {

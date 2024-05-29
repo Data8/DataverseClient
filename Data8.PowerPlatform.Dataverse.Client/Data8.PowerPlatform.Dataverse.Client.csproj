@@ -79,12 +79,23 @@ void CreateRecord(IOrganizationService svc)
     <Compile Include="..\NSspi\NSspi\TimeStamp.cs" Link="NSspi\TimeStamp.cs" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.IdentityModel.Protocols.WsTrust" Version="6.8.0" />
-    <PackageReference Include="Microsoft.PowerPlatform.Dataverse.Client" Version="1.1.14" />
-	<PackageReference Include="System.ServiceModel.Security" Version="4.10.2" Aliases="SSS" />
-    <PackageReference Include="System.ServiceModel.Federation" Version="4.10.2" />
-  </ItemGroup>
+	<ItemGroup Condition="'$(TargetFramework)' == 'net462'">
+		<PackageReference Include="Microsoft.IdentityModel.Protocols.WsTrust" Version="6.8.0" />
+		<PackageReference Include="Microsoft.PowerPlatform.Dataverse.Client" Version="1.1.16" />
+		<PackageReference Include="System.ServiceModel.Federation" Version="4.10.3" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">
+		<PackageReference Include="Microsoft.IdentityModel.Protocols.WsTrust" Version="6.8.0" />
+		<PackageReference Include="Microsoft.PowerPlatform.Dataverse.Client" Version="1.1.16" />
+		<PackageReference Include="System.ServiceModel.Federation" Version="6.2.0" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(TargetFramework)' == 'net7.0'">
+		<PackageReference Include="Microsoft.IdentityModel.Protocols.WsTrust" Version="6.8.0" />
+		<PackageReference Include="Microsoft.PowerPlatform.Dataverse.Client" Version="1.1.16" />
+		<PackageReference Include="System.ServiceModel.Federation" Version="6.2.0" />
+	</ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework)' == 'net462'">
 		<Reference Include="System.ServiceModel" />
