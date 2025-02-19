@@ -420,7 +420,10 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// <inheritdoc/>
         public Task<Entity> CreateAndReturnAsync(Entity entity, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            using (StartScope())
+            {
+                return _service.CreateAndReturnAsync(entity, cancellationToken);
+            }
         }
 
         /// <inheritdoc/>
