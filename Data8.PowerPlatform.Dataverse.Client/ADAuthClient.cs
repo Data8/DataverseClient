@@ -3,7 +3,7 @@ using Microsoft.PowerPlatform.Dataverse.Client;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Query;
-#if NET7_0_OR_GREATER
+#if NETCOREAPP
 using System.Buffers;
 using System.Net.Security;
 #else
@@ -46,13 +46,6 @@ namespace Data8.PowerPlatform.Dataverse.Client
         /// <param name="upn">The UPN the server process is running under</param>
         public ADAuthClient(string url, string username, string password, string upn)
         {
-#if !NET7_0_OR_GREATER
-            if (Environment.OSVersion.Platform == PlatformID.Unix)
-            {
-                throw new PlatformNotSupportedException("Windows authentication is only available on Windows clients or when using .NET 7");
-            }
-#endif
-
             _url = url;
             _upn = upn;
             _serializationSurrogate = new ProxySerializationSurrogate();
@@ -111,7 +104,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 return;
             }
 
-#if NET7_0_OR_GREATER
+#if NETCOREAPP
 
             var cred = string.IsNullOrEmpty(_username) ? CredentialCache.DefaultNetworkCredentials : new NetworkCredential(_username, _password, _domain);
 
@@ -161,7 +154,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             {
                 if (!(resp is RequestSecurityTokenResponse r)) continue;
 
-#if NET7_0_OR_GREATER
+#if NETCOREAPP
                 token = context.GetOutgoingBlob(r.BinaryExchange.Token, out state);
 
                 if (state != NegotiateAuthenticationStatusCode.Completed && state != NegotiateAuthenticationStatusCode.ContinueNeeded)
@@ -185,7 +178,7 @@ namespace Data8.PowerPlatform.Dataverse.Client
             _tokenExpires = finalResponse.Responses[0].Lifetime.Expires;
             _securityContextToken = finalResponse.Responses[0].RequestedSecurityToken;
 
-#if NET7_0_OR_GREATER
+#if NETCOREAPP
             if (state != NegotiateAuthenticationStatusCode.Completed)
             {
                 token = context.GetOutgoingBlob(finalResponse.Responses[0].BinaryExchange.Token, out state);
