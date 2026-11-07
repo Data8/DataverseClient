@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
+using System.Xml.Linq;
 using System.Xml.Serialization;
 
 namespace Data8.PowerPlatform.Dataverse.Client.Wsdl
@@ -20,6 +22,7 @@ namespace Data8.PowerPlatform.Dataverse.Client.Wsdl
         public const string msc = "http://schemas.microsoft.com/ws/2005/12/wsdl/contract";
         public const string msxrm = "http://schemas.microsoft.com/xrm/2011/Contracts/Services";
         public const string wsp = "http://schemas.xmlsoap.org/ws/2004/09/policy";
+        public const string wsp15 = "http://www.w3.org/ns/ws-policy";
         public const string xsd = "http://www.w3.org/2001/XMLSchema";
         public const string soap = "http://schemas.xmlsoap.org/wsdl/soap/";
         public const string wsu = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd";
@@ -47,11 +50,21 @@ namespace Data8.PowerPlatform.Dataverse.Client.Wsdl
                 yield break;
 
             var req = WebRequest.CreateHttp(url);
-            using (var resp = req.GetResponse())
+            WebResponse resp;
+
+            try
+            {
+                resp = req.GetResponse();
+            }
+            catch (WebException ex)
+            {
+                throw new WebException($"Unable to load WSDL from {url}: {ex.Message}", ex, ex.Status, ex.Response);
+            }
+
+            using (resp)
             using (var stream = resp.GetResponseStream())
             {
-                var serializer = new XmlSerializer(typeof(Definitions));
-                var wsdl = (Definitions)serializer.Deserialize(stream);
+                var wsdl = Parse(stream);
 
                 yield return wsdl;
 
@@ -62,6 +75,47 @@ namespace Data8.PowerPlatform.Dataverse.Client.Wsdl
                         foreach (var child in Load(loaded, import.Location))
                             yield return child;
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Parses a single WSDL document
+        /// </summary>
+        /// <param name="stream">The stream containing the WSDL document</param>
+        /// <returns>The parsed WSDL definitions</returns>
+        public static Definitions Parse(Stream stream)
+        {
+            var doc = XDocument.Load(stream);
+            NormalizePolicyNamespace(doc);
+
+            var serializer = new XmlSerializer(typeof(Definitions));
+
+            using (var reader = doc.CreateReader())
+            {
+                return (Definitions)serializer.Deserialize(reader);
+            }
+        }
+
+        /// <summary>
+        /// STSs may publish policies using either the original WS-Policy namespace (e.g. AD FS) or the
+        /// W3C WS-Policy 1.5 namespace. Both define the same elements we need, so map 1.5 to the original
+        /// namespace that the serialization classes are declared against.
+        /// </summary>
+        private static void NormalizePolicyNamespace(XDocument doc)
+        {
+            XNamespace wsp15 = Namespaces.wsp15;
+            XNamespace wsp = Namespaces.wsp;
+
+            foreach (var element in doc.Descendants().ToList())
+            {
+                if (element.Name.Namespace == wsp15)
+                    element.Name = wsp + element.Name.LocalName;
+
+                foreach (var attribute in element.Attributes().Where(a => a.Name.Namespace == wsp15).ToList())
+                {
+                    attribute.Remove();
+                    element.SetAttributeValue(wsp + attribute.Name.LocalName, attribute.Value);
                 }
             }
         }
@@ -100,6 +154,7 @@ namespace Data8.PowerPlatform.Dataverse.Client.Wsdl
         [XmlElement("EndorsingSupportingTokens", Namespace = Namespaces.sp, Type = typeof(EndorsingSupportingTokens))]
         [XmlElement("IssuedToken", Namespace = Namespaces.sp, Type = typeof(IssuedToken))]
         [XmlElement("SignedEncryptedSupportingTokens", Namespace = Namespaces.sp, Type = typeof(SignedEncryptedSupportingTokens))]
+        [XmlElement("SignedSupportingTokens", Namespace = Namespaces.sp, Type = typeof(SignedSupportingTokens))]
         [XmlElement("UsernameToken", Namespace = Namespaces.sp, Type = typeof(UsernameToken))]
         [XmlElement("Trust13", Namespace = Namespaces.sp, Type = typeof(Trust13))]
         [XmlElement("AuthenticationPolicy", Namespace = Namespaces.msxrm, Type = typeof(AuthenticationPolicy))]
@@ -179,6 +234,12 @@ namespace Data8.PowerPlatform.Dataverse.Client.Wsdl
     }
 
     public class SignedEncryptedSupportingTokens : PolicyItem
+    {
+        [XmlElement("Policy", Namespace = Namespaces.wsp)]
+        public Policy Policy { get; set; }
+    }
+
+    public class SignedSupportingTokens : PolicyItem
     {
         [XmlElement("Policy", Namespace = Namespaces.wsp)]
         public Policy Policy { get; set; }

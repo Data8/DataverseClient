@@ -112,4 +112,8 @@ void CreateRecord(IOrganizationService svc)
     <Folder Include="NSspi\SecureBuffer\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Data8.PowerPlatform.Dataverse.Client.Tests" />
+  </ItemGroup>
+
 </Project>
