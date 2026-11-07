@@ -241,22 +241,50 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 throw new InvalidOperationException("Unable to find token endpoint");
             }
 
-            var issuer = tokenEndpoint.Policy.FindPolicyItem<IssuedToken>();
-            var issuerMetadataEndpoint = issuer.Issuer.Metadata.Metadata.MetadataSection.MetadataReference.Address;
+            var issuer = tokenEndpoint.Policy?.FindPolicyItem<IssuedToken>();
+            var issuerMetadataEndpoint = issuer?.Issuer?.Metadata?.Metadata?.MetadataSection?.MetadataReference?.Address;
+
+            if (String.IsNullOrEmpty(issuerMetadataEndpoint))
+            {
+                throw new InvalidOperationException("Unable to find the STS metadata address in the organization service policy");
+            }
 
             // Now get the WSDL of the STS to get the username and password endpoint
             var issuerWsdls = WsdlLoader.Load(issuerMetadataEndpoint).ToList();
+            var usernameWsTrust13Port = FindUsernameWsTrust13Port(issuerWsdls, issuerMetadataEndpoint);
+
+            // Create the SOAP client to authenticate against the STS
+            var client = new ClaimsBasedAuthClient(url, usernameWsTrust13Port.Address.Location);
+            client.ChannelFactory.Credentials.UserName.UserName = credentials.UserName.UserName;
+            client.ChannelFactory.Credentials.UserName.Password = credentials.UserName.Password;
+            return client;
+        }
+
+        /// <summary>
+        /// Finds the WS-Trust 1.3 endpoint of the STS that accepts a username and password
+        /// </summary>
+        /// <param name="issuerWsdls">The WSDL documents published by the STS</param>
+        /// <param name="metadataUrl">The URL the STS metadata was loaded from, used in error messages</param>
+        /// <returns>The port describing the username endpoint</returns>
+        internal static Port FindUsernameWsTrust13Port(IReadOnlyCollection<Definitions> issuerWsdls, string metadataUrl = null)
+        {
+            var source = metadataUrl == null ? "" : " in STS metadata at " + metadataUrl;
+
             var issuerPolicies = issuerWsdls
                 .Where(wsdl => wsdl.Policies != null)
                 .SelectMany(wsdl => wsdl.Policies)
                 .ToList();
 
+            // The username token may be required as a signed & encrypted supporting token (e.g. AD FS), or as a
+            // signed supporting token when the message is protected by the HTTPS transport (UsernameOverTransport)
             var usernameWsTrust13Policy = issuerPolicies
-                .FirstOrDefault(p => p.FindPolicyItem<SignedEncryptedSupportingTokens>()?.Policy.FindPolicyItem<UsernameToken>() != null && p.FindPolicyItem<Trust13>() != null);
+                .FirstOrDefault(p => (p.FindPolicyItem<SignedEncryptedSupportingTokens>()?.Policy?.FindPolicyItem<UsernameToken>() != null ||
+                                      p.FindPolicyItem<SignedSupportingTokens>()?.Policy?.FindPolicyItem<UsernameToken>() != null) &&
+                                     p.FindPolicyItem<Trust13>() != null);
 
             if (usernameWsTrust13Policy == null)
             {
-                throw new InvalidOperationException("Unable to find username token endpoint");
+                throw new InvalidOperationException("Unable to find username token endpoint" + source);
             }
 
             var issuerBindings = issuerWsdls
@@ -265,11 +293,11 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 .ToList();
 
             var usernameWsTrust13Binding = issuerBindings
-                .FirstOrDefault(b => b.PolicyReference.Uri == "#" + usernameWsTrust13Policy.Id);
+                .FirstOrDefault(b => b.PolicyReference?.Uri == "#" + usernameWsTrust13Policy.Id);
 
             if (usernameWsTrust13Binding == null)
             {
-                throw new InvalidOperationException("Unable to find username token binding");
+                throw new InvalidOperationException("Unable to find username token binding" + source);
             }
 
             var issuerPorts = issuerWsdls
@@ -278,19 +306,16 @@ namespace Data8.PowerPlatform.Dataverse.Client
                 .SelectMany(svc => svc.Ports)
                 .ToList();
 
+            // The port refers to the binding by QName - the namespace prefix is chosen by the STS so only compare the local name
             var usernameWsTrust13Port = issuerPorts
-                .FirstOrDefault(p => p.Binding == "tns:" + usernameWsTrust13Binding.Name);
+                .FirstOrDefault(p => p.Binding != null && p.Binding.Substring(p.Binding.IndexOf(':') + 1) == usernameWsTrust13Binding.Name);
 
             if (usernameWsTrust13Port == null)
             {
-                throw new InvalidOperationException("Unable to find username token port");
+                throw new InvalidOperationException("Unable to find username token port" + source);
             }
 
-            // Create the SOAP client to authenticate against the STS
-            var client = new ClaimsBasedAuthClient(url, usernameWsTrust13Port.Address.Location);
-            client.ChannelFactory.Credentials.UserName.UserName = credentials.UserName.UserName;
-            client.ChannelFactory.Credentials.UserName.Password = credentials.UserName.Password;
-            return client;
+            return usernameWsTrust13Port;
         }
 
         private ADAuthClient ConnectAD(string url, ClientCredentials credentials, string identity)
